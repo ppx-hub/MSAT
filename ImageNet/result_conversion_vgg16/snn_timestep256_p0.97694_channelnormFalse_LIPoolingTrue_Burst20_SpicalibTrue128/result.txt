@@ -1,0 +1,22 @@
+Setting Arguments.. : Namespace(T=256, batch_size=50, channelnorm=False, cuda=True, data_norm=True, device='0', gamma=20, lateral_inhi=True, model_name='vgg16', monitor=False, p=0.97694, seed=23, smode=True, spi=128, spicalib=True, train_batch=100)
+timestep 001:0.00096
+timestep 004:0.00106
+timestep 008:0.00236
+timestep 016:0.02201999999999995
+timestep 032:0.2087599999999999
+timestep 048:0.40335999999999983
+timestep 064:0.5246000000000001
+timestep 080:0.5940599999999999
+timestep 096:0.6384999999999997
+timestep 112:0.6647800000000011
+timestep 128:0.6827600000000008
+timestep 144:0.6990999999999999
+timestep 160:0.7125799999999995
+timestep 176:0.7212800000000004
+timestep 192:0.7270999999999991
+timestep 208:0.7308799999999993
+timestep 224:0.73332
+timestep 240:0.7352399999999998
+timestep 256:0.7369599999999993
+max accs: 0.7369599999999993, timestep:(array([255]),)
+KL_div_sum: 9539.399414

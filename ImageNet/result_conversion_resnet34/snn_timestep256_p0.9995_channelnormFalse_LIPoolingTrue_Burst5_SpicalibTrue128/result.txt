@@ -1,0 +1,22 @@
+Setting Arguments.. : Namespace(T=256, batch_size=50, channelnorm=False, cuda=True, data_norm=True, device='2', gamma=5, lateral_inhi=True, model_name='resnet34', monitor=False, p=0.9995, seed=23, smode=True, spi=128, spicalib=True, train_batch=100)
+timestep 001:0.0
+timestep 004:0.0
+timestep 008:0.0
+timestep 016:0.0
+timestep 032:0.04
+timestep 048:0.32
+timestep 064:0.52875
+timestep 080:0.6512500000000001
+timestep 096:0.7025000000000001
+timestep 112:0.7424999999999999
+timestep 128:0.7675000000000001
+timestep 144:0.7912500000000001
+timestep 160:0.8037500000000001
+timestep 176:0.81125
+timestep 192:0.8287500000000001
+timestep 208:0.84625
+timestep 224:0.85375
+timestep 240:0.8600000000000001
+timestep 256:0.8612499999999998
+max accs: 0.8625, timestep:(array([246, 248, 250, 251, 252, 253]),)
+KL_div_sum: 1134.692383
