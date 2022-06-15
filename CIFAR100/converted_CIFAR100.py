@@ -14,6 +14,7 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 import time
 import os
+
 from CIFAR100_VGG16 import VGG16
 from CIFAR100_ResNet import ResNet20
 import argparse
@@ -23,8 +24,8 @@ from utils import *
 parser = argparse.ArgumentParser(description='Conversion')
 parser.add_argument('--T', default=256, type=int, help='simulation time')
 parser.add_argument('--spi', default=256, type=int, help='spi time')
-parser.add_argument('--p', default=0.99, type=float, help='percentile for data normalization. 0-1')
-parser.add_argument('--gamma', default=5, type=int, help='burst spike and max spikes IF can emit')
+parser.add_argument('--p', default=1, type=float, help='percentile for data normalization. 0-1')
+parser.add_argument('--gamma', default=10, type=int, help='burst spike and max spikes IF can emit')
 parser.add_argument('--spicalib', default=False, type=bool, help='use spike calibration')
 parser.add_argument('--lateral_inhi', default=True, type=bool, help='LIPooling')
 parser.add_argument('--channelnorm', default=False, type=bool, help='use channel norm')
@@ -102,8 +103,9 @@ def evaluate_snn(test_iter, snn, device=None, duration=50, plot=False, linetype=
 if __name__ == '__main__':
     print("Setting Arguments.. : ", args)
     print("----------------------------------------------------------")
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.device
     seed_all(seed=args.seed)
-    device = torch.device("cuda:%s" % args.device) if args.cuda else 'cpu'
+    device = torch.device("cuda:0") if args.cuda else 'cpu'
 
     normalize = torchvision.transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
     transform_train = transforms.Compose(

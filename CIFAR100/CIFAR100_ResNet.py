@@ -14,7 +14,7 @@ import os
 import random
 from utils import *
 
-device = torch.device('cuda:6' if torch.cuda.is_available() else 'cpu')
+# device = torch.device('cuda:6' if torch.cuda.is_available() else 'cpu')
 resnet18 = ((2, 64, 64), (2, 64, 128), (2, 128, 256), (2, 256, 512))
 
 def seed_all(seed=1000):

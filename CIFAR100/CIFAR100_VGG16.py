@@ -15,7 +15,7 @@ import os
 from tqdm import tqdm
 import random
 from utils import *
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+# device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 def seed_all(seed=1000):
     random.seed(seed)

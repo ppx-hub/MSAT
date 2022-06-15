@@ -509,7 +509,8 @@ def clean_mem_spike(m):
             child.sumspike = 0
             child.summem = 0
             child.t = 0
-            child.threshold = child.maxThreshold
+            child.threshold = 1.0
+            child.last_mem = 0.0
             child.all_spike = 0.0
         elif isinstance(child, SMaxPool):
             child.input = 0
@@ -537,12 +538,14 @@ class SNode(nn.Module):
         self.smode = smode
         self.spicalib = spicalib
         self.monitor = monitor
-        self.threshold = maxThreshold
+        self.threshold = 1.0  # theta_i^l(t)
         self.maxThreshold = maxThreshold
+        self.dThreshold = 0
+        self.Vm = 0  # V_m^l(t)
         self.opration = nn.ReLU(True)
         self.gamma = gamma
 
-        self.mem = 0
+        self.mem = 0  # V_i^l(t)
         self.spike = 0
         self.sum = 0
         
@@ -553,7 +556,7 @@ class SNode(nn.Module):
         self.summem = 0
         self.sumspike = 0
         
-        self.last_spike = 0
+        self.last_mem = 0
         self.avg_time = 0
         self.num_spike = 0
         self.t = 0
@@ -564,32 +567,25 @@ class SNode(nn.Module):
             if self.monitor: self.sum += x.cpu().detach()
             out = self.opration(x)
         else:
-            if self.t == 0:
-                self.last_spike = torch.zeros_like(x)
-                self.avg_time = torch.zeros_like(x)
-                self.num_spike = torch.zeros_like(x)
-                self.inhi = torch.ones_like(x)
-
             self.mem = self.mem + x
             self.spike = (self.mem / self.threshold).floor().clamp(min=0, max=self.gamma)
-
             self.mem = self.mem - self.spike * self.threshold
-            if self.spicalib:
-                spike_mask = self.spike > 0
-                self.num_spike[spike_mask] += 1
-                self.avg_time[spike_mask] = (self.t - self.last_spike + self.avg_time * (self.num_spike - 1))[spike_mask] / \
-                                            self.num_spike[spike_mask]
-                self.last_spike[spike_mask] = self.t
-                self.spike[self.t - self.last_spike > self.avg_time + self.allowance] -= 1.0
-                self.sumspike += self.spike
-                self.spike[self.sumspike <= -1] = 0
-                self.t += 1
-                self.all_spike += self.spike.__abs__()
-            else:
-                self.sumspike += self.spike * self.threshold
-
+            self.sumspike += self.spike * self.threshold
             out = self.spike * self.threshold
-            # out = self.spike
+
+            if self.t == 0:
+                self.Vm = torch.full(x.shape, 1/2 * self.maxThreshold).cuda()
+                self.threshold = torch.full(x.shape, 1/2 * self.maxThreshold).cuda()  # 初始化1或者1/2 V_th？
+                self.last_mem = self.mem
+            N = x.shape[0]
+            avg_threshold = torch.mean(self.threshold.reshape(N, -1), dim=1).unsqueeze(1).unsqueeze(2).unsqueeze(3)
+            avg_threshold = torch.ones_like(self.threshold) * avg_threshold.cuda()
+            self.threshold = 1/2 * (torch.exp(-1 * avg_threshold) + torch.exp(-1 * (self.mem - self.last_mem) / 3.0))\
+                             + 1/2 * (0.05 * (self.mem - self.Vm).__abs__() + torch.log(1 + torch.exp((self.mem - self.Vm).__abs__() / 6.0)))
+            self.threshold = torch.sigmoid(self.threshold)
+            self.threshold *= self.maxThreshold
+            self.last_mem = self.mem
+            self.t += 1
             if self.monitor:
                 self.summem += x
                 self.rmem.append(self.summem.cpu().detach())
