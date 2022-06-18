@@ -13,7 +13,8 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 from copy import deepcopy
 
-
+class FolderPath:
+    folder_path = "init"
 class Cutout(object):
     """Randomly mask out one or more patches from an image.
     Args:
@@ -394,52 +395,38 @@ def seed_all(seed=1000):
     print("set seed:{}".format(seed))
 
 class HookScale(nn.Module):
-    def __init__(self, p=0.9995, channelnorm=False, gamma=1):
+    def __init__(self, p=0.9995, gamma=1):
         super().__init__()
-        if channelnorm:
-            self.register_buffer('scale', torch.tensor(1.0))
-        else:
-            self.register_buffer('scale', torch.tensor(1.0))
-        
+
+        self.register_buffer('scale', torch.tensor(1.0))
         self.p = p
-        self.channelnorm = channelnorm
         self.gamma = gamma
 
     def forward(self, x):
         x = x.detach()
         with torch.no_grad():
-            if self.gamma > 1 and (self.channelnorm):
-                x[x>1] = x[x>1] / self.gamma
-                # x[x>self.gamma] = self.gamma
-            if len(x.shape) == 4 and self.channelnorm:
-                num_channel = x.shape[1]
-                self.scale = torch.quantile(x.permute(1, 0, 2, 3).reshape(num_channel, -1), self.p, dim=1, interpolation='lower') + 1e-10
-            else:
-                sort, _ = torch.sort(x.view(-1))
-                # self.scale = max(sort[int(sort.shape[0] * self.p) - 1], self.scale)
-                self.scale = sort[int(sort.shape[0] * self.p) - 1]
-                # print(self.scale)
+            sort, _ = torch.sort(x.view(-1))
+            # self.scale = max(sort[int(sort.shape[0] * self.p) - 1], self.scale)
+            self.scale = sort[int(sort.shape[0] * self.p) - 1]
+            # print(self.scale)
         return x
 
 
 class Converter(nn.Module):
-    def __init__(self, dataloader, device=None, p=0.9995, channelnorm=False, lateral_inhi=True, gamma=1, spicalib=False, monitor=False, smode=True, allowance=256):
+    def __init__(self, dataloader, device=None, p=0.9995,  lateral_inhi=True, gamma=1, smode=True, VthHand=False, useDET=False):
         super().__init__()
         self.dataloader = dataloader
         self.device = device
         self.p = p
-        self.channelnorm = channelnorm
         self.lateral_inhi = lateral_inhi
-        self.monitor = monitor
-        self.smode =  smode
-        self.spicalib = spicalib
+        self.smode = smode
         self.gamma = gamma
-        self.allowance = allowance
-        
+        self.VthHand = VthHand
+        self.useDET = useDET
     def forward(self, model):
         model.eval()
         # print('register hook scale...')
-        self.register_hook(model, self.p, self.channelnorm, self.gamma).to(self.device)
+        self.register_hook(model, self.p, self.gamma).to(self.device)
         data = iter(self.dataloader).next()[0].to(self.device)
         # y = data[1].to(self.device)
         # data = data[0].to(self.device)
@@ -450,49 +437,44 @@ class Converter(nn.Module):
         #     model(test_x)
         model(data)
         print('finish get max-value!')
+        model = self.replace_for_spike(model, smode=self.smode, gamma=self.gamma, lateral_inhi=self.lateral_inhi,
+                                       VthHand=self.VthHand, useDET=self.useDET)
         # for name, child in model.named_modules():
-        #     if isinstance(child, HookScale):
-        #         print(child.scale)
-        model = self.replace_for_spike(model, smode=self.smode, gamma=self.gamma, lateral_inhi=self.lateral_inhi, spicalib=self.spicalib, monitor=self.monitor, allowance=self.allowance)
+        #     if isinstance(child, SNode):
+        #         print("+1")
         return model
 
     @staticmethod
-    def register_hook(model, p=0.99, channelnorm=False, gamma=1):
+    def register_hook(model, p=0.99, gamma=1):
         children = list(model.named_children())
         for i, (name, child) in enumerate(children):
             if isinstance(child, nn.ReLU):
-                model._modules[name] = nn.Sequential(nn.ReLU(), HookScale(p, channelnorm, gamma)) 
+                model._modules[name] = nn.Sequential(nn.ReLU(), HookScale(p, gamma))
             elif isinstance(child, nn.Conv2d):
-                model._modules[name] = nn.Sequential(child, HookScale(p, channelnorm, gamma)) 
+                model._modules[name] = nn.Sequential(child, HookScale(p, gamma))
             elif isinstance(child, nn.BatchNorm2d):
-                model._modules[name] = nn.Sequential(child, HookScale(p, channelnorm, gamma)) 
+                model._modules[name] = nn.Sequential(child, HookScale(p, gamma))
             elif isinstance(child, nn.MaxPool2d):
-                model._modules[name] = nn.Sequential(child, HookScale(p, channelnorm, gamma)) 
+                model._modules[name] = nn.Sequential(child, HookScale(p, gamma))
             else:
-                Converter.register_hook(child, p, channelnorm, gamma)
+                Converter.register_hook(child, p, gamma)
         return model
 
     @staticmethod
-    def replace_for_spike(model, smode=True, gamma=1, lateral_inhi=True, spicalib=False, monitor=False, allowance=256):
+    def replace_for_spike(model, smode=True, gamma=1, lateral_inhi=True, VthHand=False, useDET=False):
         children = list(model.named_children())
         for i, (name, child) in enumerate(children):
             if isinstance(child, nn.Sequential) and len(child) == 2 and isinstance(child[0], nn.ReLU) and isinstance(child[1], HookScale):
-                if isinstance(allowance, list):
-                    allow = allowance[0]
-                    del allowance[0]
-                else:
-                    allow = allowance
                 # print(child[1].scale)
-
-                model._modules[name] = SNode(smode=smode, gamma=gamma, spicalib=spicalib, monitor=monitor, allowance=allow, maxThreshold=child[1].scale)
+                model._modules[name] = SNode(smode=smode, gamma=gamma, maxThreshold=child[1].scale, VthHand=VthHand, useDET=useDET)
             elif isinstance(child, nn.Sequential) and len(child) == 2 and isinstance(child[0], nn.Conv2d) and isinstance(child[1], HookScale):
                 model._modules[name] = child[0]
             elif isinstance(child, nn.Sequential) and len(child) == 2 and isinstance(child[0], nn.BatchNorm2d) and isinstance(child[1], HookScale):
                 model._modules[name] = child[0]
             elif isinstance(child, nn.Sequential) and len(child) == 2 and isinstance(child[0], nn.MaxPool2d) and isinstance(child[1], HookScale):
-                model._modules[name] = SMaxPool(child[0], smode=smode, lateral_inhi=lateral_inhi, monitor=monitor)
+                model._modules[name] = SMaxPool(child[0], smode=smode, lateral_inhi=lateral_inhi)
             else:
-                Converter.replace_for_spike(child, smode, gamma, lateral_inhi, spicalib, monitor, allowance)
+                Converter.replace_for_spike(child, smode, gamma, lateral_inhi, VthHand, useDET)
         return model
 
 
@@ -503,13 +485,10 @@ def clean_mem_spike(m):
             child.mem = 0
             child.spike = 0
             child.sum = 0
-            child.rmem = []
-            child.rspike = []
-            child.rsum = []
             child.sumspike = 0
             child.summem = 0
             child.t = 0
-            child.threshold = 1.0
+            child.threshold = child.maxThreshold
             child.last_mem = 0.0
             child.all_spike = 0.0
         elif isinstance(child, SMaxPool):
@@ -533,14 +512,12 @@ class Scale(nn.Module):
 
 
 class SNode(nn.Module):
-    def __init__(self, smode=True, gamma=5, spicalib=False, monitor=False, allowance=256, maxThreshold=1.0):
+    def __init__(self, smode=True, gamma=5,maxThreshold=1.0, VthHand=False, useDET=False):
         super(SNode, self).__init__()
         self.smode = smode
-        self.spicalib = spicalib
-        self.monitor = monitor
-        self.threshold = 1.0  # theta_i^l(t)
+        self.threshold = maxThreshold  # theta_i^l(t)
         self.maxThreshold = maxThreshold
-        self.dThreshold = 0
+        self.init_threshold = 0
         self.Vm = 0  # V_m^l(t)
         self.opration = nn.ReLU(True)
         self.gamma = gamma
@@ -548,48 +525,61 @@ class SNode(nn.Module):
         self.mem = 0  # V_i^l(t)
         self.spike = 0
         self.sum = 0
-        
-        self.rmem = []
-        self.rspike = []
-        self.rsum = []
 
         self.summem = 0
         self.sumspike = 0
         
         self.last_mem = 0
-        self.avg_time = 0
         self.num_spike = 0
         self.t = 0
         self.all_spike = 0
-        self.allowance = allowance
+        self.V_T = 0
+        self.record = True
+        self.VthHand = VthHand
+        self.useDET = useDET
     def forward(self, x):
-        if not self.smode:
-            if self.monitor: self.sum += x.cpu().detach()
-            out = self.opration(x)
-        else:
-            self.mem = self.mem + x
-            self.spike = (self.mem / self.threshold).floor().clamp(min=0, max=self.gamma)
-            self.mem = self.mem - self.spike * self.threshold
-            self.sumspike += self.spike * self.threshold
-            out = self.spike * self.threshold
+        global folder_path
+        if self.t == 0:
+            self.mem = 1/2 * self.maxThreshold
+        self.mem = self.mem + x
 
+        if self.VthHand != -1:
             if self.t == 0:
-                self.Vm = torch.full(x.shape, 1/2 * self.maxThreshold).cuda()
-                self.threshold = torch.full(x.shape, 1/2 * self.maxThreshold).cuda()  # 初始化1或者1/2 V_th？
-                self.last_mem = self.mem
-            N = x.shape[0]
-            avg_threshold = torch.mean(self.threshold.reshape(N, -1), dim=1).unsqueeze(1).unsqueeze(2).unsqueeze(3)
-            avg_threshold = torch.ones_like(self.threshold) * avg_threshold.cuda()
-            self.threshold = 1/2 * (torch.exp(-1 * avg_threshold) + torch.exp(-1 * (self.mem - self.last_mem) / 3.0))\
-                             + 1/2 * (0.05 * (self.mem - self.Vm).__abs__() + torch.log(1 + torch.exp((self.mem - self.Vm).__abs__() / 6.0)))
-            self.threshold = torch.sigmoid(self.threshold)
-            self.threshold *= self.maxThreshold
-            self.last_mem = self.mem
-            self.t += 1
-            if self.monitor:
-                self.summem += x
-                self.rmem.append(self.summem.cpu().detach())
-                self.rspike.append(self.sumspike.cpu().detach())
+                self.threshold = torch.full(x.shape, self.VthHand * self.maxThreshold).cuda()
+        else:
+            if self.t == 0:
+                self.threshold = torch.full(x.shape, 1 * self.maxThreshold).cuda()
+                self.V_T = torch.full(x.shape, 1/2 * self.maxThreshold).cuda()
+            else:
+                DTT = 1/2 * (0.05 * (self.last_mem - self.Vm) + self.V_T + torch.log(1 + torch.exp((self.last_mem - self.Vm) / 1.0)))
+                DET = 1/2 * (0.1 * torch.exp(-1 * (self.mem - self.last_mem) / 5.0))
+                if self.useDET is True:
+                    self.threshold = DTT + DET
+                else:
+                    self.threshold = DTT
+                self.threshold = torch.sigmoid(self.threshold)
+                self.threshold *= self.maxThreshold
+        self.spike = (self.mem / self.threshold).floor().clamp(min=0, max=self.gamma)
+        self.mem = self.mem - self.spike * self.threshold
+        self.sumspike += self.spike * self.threshold
+        out = self.spike * self.threshold
+        self.t += 1
+        self.last_mem = self.mem
+        self.summem += self.mem
+        self.Vm = (self.summem / self.t)
+        # if self.record is True:
+        #     f = open('{}/Vrd_timestep.txt'.format(FolderPath.folder_path), 'a+')
+        #     f.write("{:.3f} ".format((self.mem[1, 1, 1, 1] - self.last_mem[1, 1, 1, 1]).item()))  # 随便挑一个
+        #     f.close()
+        if self.record is True:
+            f = open('{}/Vmem_timestep.txt'.format(FolderPath.folder_path), 'a+')
+            f.write("{:.3f} ".format((self.last_mem[1, 1, 1, 1] - self.Vm[1, 1, 1, 1]).item()))  # 随便挑一个
+            f.close()
+        if self.record is True:
+            f = open('{}/Vth_timestep.txt'.format(FolderPath.folder_path), 'a+')
+            f.write("{:.3f} ".format((self.threshold[1, 1, 1, 1] / self.maxThreshold).item()))  # 随便挑一个
+            f.close()
+
         return out
 
 
@@ -608,7 +598,6 @@ class SMaxPool(nn.Module):
         batch, channel, w, h = x.shape
         k, s, p = self.opration.kernel_size, self.opration.stride, self.opration.padding
 
-        if self.monitor: self.input += x.detach().cpu()
         if not self.smode:
             out = self.opration(x)
         elif not self.lateral_inhi:
@@ -622,5 +611,4 @@ class SMaxPool(nn.Module):
             out = self.sumspike.max(dim=2, keepdim=True)[0]
             self.sumspike -= out
             out = out.squeeze(2)
-        if self.monitor: self.sum += out.cpu().detach()
         return out
