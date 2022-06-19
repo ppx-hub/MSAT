@@ -14,6 +14,9 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 import time
 import os
+torch.set_num_threads(8)
+os.environ["OMP_NUM_THREADS"] = "8"  # 设置OpenMP计算库的线程数
+os.environ["MKL_NUM_THREADS"] = "8"  # 设置MKL-DNN CPU加速库的线程数。
 import argparse
 from utils import *
 from pytorchcv.model_provider import get_model as ptcv_get_model
