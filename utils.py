@@ -545,8 +545,8 @@ class SNode(nn.Module):
             if self.monitor: self.sum += x.cpu().detach()
             out = self.opration(x)
         else:
-            if self.t == 0:
-                self.mem = 1/2 * self.maxThreshold
+            # if self.t == 0:
+            #     self.mem = 1/2 * self.maxThreshold
             self.mem = self.mem + x
 
             if self.VthHand != -1:
@@ -555,9 +555,9 @@ class SNode(nn.Module):
             else:
                 if self.t == 0:
                     self.threshold = torch.full(x.shape, 1 * self.maxThreshold).cuda()
-                    self.V_T = -torch.full(x.shape, 1/2 * self.maxThreshold).cuda()
+                    self.V_T = -torch.full(x.shape, self.maxThreshold).cuda()
                 else:
-                    DTT = 1/2 * (0.03 * (self.last_mem - self.Vm) + self.V_T + torch.log(1 + torch.exp((self.last_mem - self.Vm) / 1.0)))
+                    DTT = 1 * (0.03 * (self.last_mem - self.Vm) + self.V_T + torch.log(1 + torch.exp((self.last_mem - self.Vm) / 1.0)))
                     DET = torch.exp(-1 * x / 5.0)
                     if self.useDET is True and self.useDTT is True:
                         self.threshold = DET + DTT
