@@ -7,29 +7,33 @@ import os
 import numpy as np
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-
+root = "/home/hexiang/MSAT/CIFAR100/result_conversion_vgg16/"
 acc_target = 0.7849
 acc_list_target = [acc_target] * 256
 
-Path_P_Norm = '/data1/hexiang/newframework/conversion3/CIFAR100/result_conversion_vgg16/snn_timestep256_p0.995_channelnormFalse_LIPoolingFalse_Burst1_SpicalibFalse256/accs.pth'
-acc_list = torch.load(Path_P_Norm)
+Path_0point5 = root + 'snn_p1_VthHand0.5_useDET_False_useDTT_False/accs.pth'
+acc_list = torch.load(Path_0point5)
 acc_list1 = [acc_list[i].item() for i in range(len(acc_list))]
 
-Path_Burst = '/data1/hexiang/newframework/conversion3/CIFAR100/result_conversion_vgg16/snn_timestep256_p0.995_channelnormFalse_LIPoolingFalse_Burst5_SpicalibFalse256/accs.pth'
-acc_list = torch.load(Path_Burst)
+Path_0point7 = root + 'snn_p1_VthHand0.7_useDET_False_useDTT_False/accs.pth'
+acc_list = torch.load(Path_0point7)
 acc_list2 = [acc_list[i].item() for i in range(len(acc_list))]
 
-Path_MLIPooling = '/data1/hexiang/newframework/conversion3/CIFAR100/result_conversion_vgg16/snn_timestep256_p0.995_channelnormFalse_LIPoolingTrue_Burst5_SpicalibFalse256/accs.pth'
-acc_list = torch.load(Path_MLIPooling)
+Path_0point9 = root + 'snn_p1_VthHand0.9_useDET_False_useDTT_False/accs.pth'
+acc_list = torch.load(Path_0point9)
 acc_list3 = [acc_list[i].item() for i in range(len(acc_list))]
 
-Path_With_SpiCalib = '/data1/hexiang/newframework/conversion3/CIFAR100/result_conversion_vgg16/snn_timestep256_p0.995_channelnormFalse_LIPoolingFalse_Burst5_SpicalibTrue64/accs.pth'
-acc_list = torch.load(Path_With_SpiCalib)
+Path_With_DTT = root + 'snn_p1_VthHand-1.0_useDET_False_useDTT_True/accs.pth'
+acc_list = torch.load(Path_With_DTT)
 acc_list4 = [acc_list[i].item() for i in range(len(acc_list))]
 
-Path_With_SpiCalib_MLIPooling = '/data1/hexiang/newframework/conversion3/CIFAR100/result_conversion_vgg16/snn_timestep256_p0.995_channelnormFalse_LIPoolingTrue_Burst5_SpicalibTrue128/accs.pth'
-acc_list = torch.load(Path_With_SpiCalib_MLIPooling)
+Path_With_DET = root + 'snn_p1_VthHand-1.0_useDET_True_useDTT_False/accs.pth'
+acc_list = torch.load(Path_With_DET)
 acc_list5 = [acc_list[i].item() for i in range(len(acc_list))]
+
+Path_With_DET_DTT = root + 'snn_p1_VthHand-1.0_useDET_True_useDTT_True/accs.pth'
+acc_list = torch.load(Path_With_DET_DTT)
+acc_list6 = [acc_list[i].item() for i in range(len(acc_list))]
 
 plt.figure()
 fig, ax = plt.subplots()
@@ -39,21 +43,23 @@ ax.plot(acc_list2, 'c')
 ax.plot(acc_list3, 'b')
 ax.plot(acc_list4, 'g')
 ax.plot(acc_list5, 'r')
+ax.plot(acc_list6, 'm')
 ax.axhline(acc_target, color='k', linestyle='--')
 
-ax1 = ax.inset_axes([0.28, 0.5, 0.46, 0.32])
+ax1 = ax.inset_axes([0.5, 0.5, 0.3, 0.2])
 ax1.plot(acc_list1, 'y')
 ax1.plot(acc_list2, 'c')
 ax1.plot(acc_list3, 'b')
 ax1.plot(acc_list4, 'g')
 ax1.plot(acc_list5, 'r')
+ax1.plot(acc_list6, 'm')
 ax1.plot(acc_list_target, color='k', linestyle='--')
-ax1.set_xlim(200, 256)
-ax1.set_ylim(0.775, 0.788)
+ax1.set_xlim(224, 256)
+ax1.set_ylim(0.765, 0.788)
 ax.indicate_inset_zoom(ax1)
 
-plt.legend(['P-Norm', 'Burst Spikes', 'With MLIPooling', 'With SpiCalib',
-            'With Spicalib and MLIPooLing', 'Target Acc: 0.7849'], fontsize=10, bbox_to_anchor=[0.47, 0.37, 0, 0])
+plt.legend(['0.5 x vth', '0.7 x vth', '0.9 x vth', 'With DTT',
+            'With DET', 'With DTT DET', 'Target Acc: 0.7849'], fontsize=10, bbox_to_anchor=[0.5, 0.35, 0, 0])
 # plt.title('Spiking VGG16 on CIFAR100 Dataset')
 plt.ylim([0, 0.8])
 plt.xlim([0, 256])
