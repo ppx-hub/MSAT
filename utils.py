@@ -557,8 +557,8 @@ class SNode(nn.Module):
                     self.threshold = torch.full(x.shape, 1 * self.maxThreshold).cuda()
                     self.V_T = -torch.full(x.shape, self.maxThreshold).cuda()
                 else:
-                    DTT = 1 * (0.03 * (self.last_mem - self.Vm) + self.V_T + torch.log(1 + torch.exp((self.last_mem - self.Vm) / 1.0)))
-                    DET = torch.exp(-1 * x / 5.0)
+                    DTT = 1/2 * (0.3 * (self.last_mem - self.Vm) + self.V_T + torch.log(1 + torch.exp((self.last_mem - self.Vm) / 1.0)))
+                    DET = 1/2 * torch.exp(-1 * x / 5.0)
                     if self.useDET is True and self.useDTT is True:
                         self.threshold = DET + DTT
                     elif self.useDTT is True:
@@ -579,18 +579,18 @@ class SNode(nn.Module):
             self.last_mem = self.mem
             self.summem += self.mem
             self.Vm = (self.summem / self.t)
-            if self.record is True:
-                f = open('{}/Vrd_timestep.txt'.format(FolderPath.folder_path), 'a+')
-                f.write("{:.3f} ".format(x[1, 1, 1, 1].item()))  # 随便挑一个
-                f.close()
-            if self.record is True:
-                f = open('{}/Vmem_timestep.txt'.format(FolderPath.folder_path), 'a+')
-                f.write("{:.3f} ".format((self.last_mem[1, 1, 1, 1] - self.Vm[1, 1, 1, 1]).item()))  # 随便挑一个
-                f.close()
-            if self.record is True:
-                f = open('{}/Vth_timestep.txt'.format(FolderPath.folder_path), 'a+')
-                f.write("{:.3f} ".format((self.threshold[1, 1, 1, 1] / self.maxThreshold).item()))  # 随便挑一个
-                f.close()
+            # if self.record is True:
+            #     f = open('{}/Vrd_timestep.txt'.format(FolderPath.folder_path), 'a+')
+            #     f.write("{:.3f} ".format(x[1, 1, 1, 1].item()))  # 随便挑一个
+            #     f.close()
+            # if self.record is True:
+            #     f = open('{}/Vmem_timestep.txt'.format(FolderPath.folder_path), 'a+')
+            #     f.write("{:.3f} ".format((self.last_mem[1, 1, 1, 1] - self.Vm[1, 1, 1, 1]).item()))  # 随便挑一个
+            #     f.close()
+            # if self.record is True:
+            #     f = open('{}/Vth_timestep.txt'.format(FolderPath.folder_path), 'a+')
+            #     f.write("{:.3f} ".format((self.threshold[1, 1, 1, 1] / self.maxThreshold).item()))  # 随便挑一个
+            #     f.close()
 
         return out
 

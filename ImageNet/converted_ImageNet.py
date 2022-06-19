@@ -21,30 +21,29 @@ from pytorchcv.model_provider import get_model as ptcv_get_model
 
 parser = argparse.ArgumentParser(description='Conversion')
 parser.add_argument('--T', default=256, type=int, help='simulation time')
-parser.add_argument('--spi', default=256, type=int, help='spi time')
-parser.add_argument('--p', default=0.999, type=float, help='percentile for data normalization. 0-1')
-parser.add_argument('--gamma', default=5, type=int, help='burst spike and max spikes IF can emit')
-parser.add_argument('--spicalib', default=False, type=bool, help='use spike calibration')
-parser.add_argument('--channelnorm', default=False, type=bool, help='use channel norm')
+parser.add_argument('--p', default=1, type=float, help='percentile for data normalization. 0-1')
+parser.add_argument('--gamma', default=1, type=int, help='burst spike and max spikes IF can emit')
+parser.add_argument('--lateral_inhi', default=True, type=bool, help='LIPooling')
 parser.add_argument('--data_norm', default=True, type=bool, help=' whether use data norm or not')
-parser.add_argument('--lateral_inhi', default=False, type=bool, help='LIPooling')
-parser.add_argument('--monitor', default=False, type=bool, help='record inter states')
 parser.add_argument('--smode', default=True, type=bool, help='replace ReLU to IF')
-parser.add_argument('--device', default='1', type=str, help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+parser.add_argument('--device', default='2', type=str, help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
 parser.add_argument('--cuda', default=True, type=bool, help='use cuda.')
 parser.add_argument('--model_name', default='vgg16', type=str, help='model name. vgg16 or resnet20')
 parser.add_argument('--train_batch', default=100, type=int, help='batch size for get max')
 parser.add_argument('--batch_size', default=50, type=int, help='batch size for testing')
 parser.add_argument('--seed', default=23, type=int, help='seed')
+parser.add_argument('--VthHand', default=1, type=float, help='Vth scale, -1 means variable')
+parser.add_argument('--useDET', action='store_true', default=False, help='use DET')
+parser.add_argument('--useDTT', action='store_true', default=False, help='use DTT')
 args = parser.parse_args()
 
 
 def evaluate_snn(test_iter, snn, device=None, duration=50, plot=False, linetype=None):
-    folder_path = "./result_conversion_{}/snn_timestep{}_p{}_channelnorm{}_LIPooling{}_Burst{}_Spicalib{}{}".format(
-            args.model_name, duration, args.p, args.channelnorm, args.lateral_inhi,
-            args.gamma, args.spicalib, args.spi)
-    if not os.path.exists(folder_path):  # 判断是否存在文件夹如果不存在则创建为文件夹
+    folder_path = "./result_conversion_{}/snn_p{}_VthHand{}_useDET_{}_useDTT_{}".format(
+            args.model_name, args.p, args.VthHand, args.useDET, args.useDTT)
+    if not os.path.exists(folder_path):
         os.makedirs(folder_path)
+    FolderPath.folder_path = folder_path
     linetype = '-' if linetype == None else linetype
     accs = []
     snn.eval()
@@ -73,9 +72,7 @@ def evaluate_snn(test_iter, snn, device=None, duration=50, plot=False, linetype=
         accs.append(np.array(acc))
         # if ind==15:
         #     break
-    rout = torch.cat(rout, 0).cpu().detach()
-    aout = torch.cat(aout, 0).cpu().detach()
-    kl = F.kl_div(rout.softmax(dim=-1).log(), aout.softmax(dim=-1), reduction='sum')
+
     if True:
         f = open('{}/result.txt'.format(folder_path), 'w')
         f.write("Setting Arguments.. : {}\n".format(args))
@@ -84,13 +81,11 @@ def evaluate_snn(test_iter, snn, device=None, duration=50, plot=False, linetype=
             if iii == 0 or iii == 3 or iii == 7 or (iii + 1) % 16 == 0:
                 f.write("timestep {}:{}\n".format(str(iii+1).zfill(3), accs[iii]))
         f.write("max accs: {}, timestep:{}\n".format(max(accs), np.where(accs == max(accs))))
-        f.write("KL_div_sum: {:.6f}\n".format(kl))
-        if plot:
-            plt.plot(list(range(len(accs))), accs, linetype)
-            plt.ylabel('Accuracy')
-            plt.xlabel('Time Step')
-            # plt.show()
-            plt.savefig('./result.jpg')
+        f.write("use for latex tabular: & {:.2f} & {:.2f} & {:.2f} & {:.2f} & {:.2f}".format(max(accs) * 100, accs[31]* 100,
+                                                                                         accs[63]*100, accs[127]*100, accs[255]*100))
+        f.close()
+        accs = torch.from_numpy(accs)
+        torch.save(accs, "{}/accs.pth".format(folder_path))
 
 
 if __name__ == '__main__':
@@ -114,9 +109,9 @@ if __name__ == '__main__':
     acc = evaluate_accuracy(test_iter, net, device)
     print("acc on ann is : {:.4f}".format(acc))
 
-    converter = Converter(test_iter, device, args.p, args.channelnorm, args.lateral_inhi,
-                          args.gamma, args.spicalib, args.monitor, args.smode, args.spi)
-    snn = converter(net)
+    converter = Converter(train_iter, device, args.p, args.lateral_inhi,
+                          args.gamma, args.smode, args.VthHand, args.useDET, args.useDTT)
+    snn = converter(net)  # use threshold balancing or not
     torch.cuda.empty_cache()
 
     # sys.exit()
