@@ -1,0 +1,52 @@
+\documentclass[a4paper,11pt,onecolumn,oneside,UTF8]{article}
+
+\newcommand*{\dif}{\mathop{}\!\mathrm{d}}
+\usepackage{ctex}
+ % 中文支持
+\usepackage{amsthm,amsmath,amssymb}
+\usepackage{mathrsfs}
+\usepackage{bm}
+\usepackage{graphicx, subfigure}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{color}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{pythonhighlight}
+\usepackage{hyperref}
+\addtolength{\topmargin}{-54pt}
+\setlength{\oddsidemargin}{-0.9cm}
+\setlength{\evensidemargin}{\oddsidemargin}
+\setlength{\textwidth}{17.00cm}
+\setlength{\textheight}{24.00cm}
+% 24.62
+
+\begin{document}
+
+\begin{center}
+     \Huge\textbf{Spiking Calibration}\footnote[1]{*:seed 23, train\_batch 512, test\_batch 1}
+     \\[20pt]
+     \Large\textnormal{2022 年5 月}
+\end{center}
+
+
+\begin{table}[h]  
+    \centering
+    % scalebox{0.6}代表缩小到0.6，可以手动调节
+    \scalebox{0.5}{
+        \begin{tabular}{cllcccc}
+            \hline Architecture (timesteps) & Dataset & Normalized \# $O P_{\text {ANN }}(a)$ & Normalized \#$ O P_{S N N}(b)$ &  mean firing rate(lowest, highest) & \#$ O P$ layer 1 Total \#OP $(c)$ &  DIET-SNN / ANN Energy $\frac{a * 4.6}{c*4.6+(1-c)*b*0.9}$ \\
+            \hline VGG16 (T=64) & CIFAR10 & $1.0$ & $0.0706$ & $0.0734(0.0392 - 0.1177)$ & $0.005650$ & $1.2756$\\
+            \hline VGG16 (T=64) & VOC2007 & $1.0$ & $0.1411$ & $0.1408(0.0792- 0.2123)$ & $0.003759$ & $2.09$\\
+            \hline Fcn32s (T=64) & VOC2011ClassSeg &$1.0$ &$0.01530$ &$0.01614(0.00628 - 0.03193)$ & $0.004704$ & $0.492$\\ 
+            \hline
+        \end{tabular}}
+      \caption{hello world}
+      
+    \centering
+    \end{table}
+
+    \end{document}

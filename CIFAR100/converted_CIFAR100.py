@@ -36,19 +36,34 @@ parser.add_argument('--batch_size', default=128, type=int, help='batch size for 
 parser.add_argument('--seed', default=23, type=int, help='seed')
 parser.add_argument('--VthHand', default=1, type=float, help='Vth scale, -1 means variable')
 parser.add_argument('--useDET', action='store_true', default=False, help='use DET')
+parser.add_argument('--useDTT', action='store_true', default=False, help='use DTT')
 args = parser.parse_args()
 
 
-def evaluate_snn(test_iter, snn, device=None, duration=50, plot=False, linetype=None):
-    folder_path = "./result_conversion_{}/snn_timestep{}_p{}_VthHand{}_useDET_{}".format(
-            args.model_name, duration, args.p, args.VthHand, args.useDET)
+def evaluate_snn(test_iter, snn, net, device=None, duration=50, plot=False, linetype=None):
+    folder_path = "./result_conversion_{}/snn_p{}_VthHand{}_useDET_{}_useDTT_{}".format(
+            args.model_name, args.p, args.VthHand, args.useDET, args.useDTT)
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
     FolderPath.folder_path = folder_path
     linetype = '-' if linetype == None else linetype
     accs = []
     snn.eval()
-
+    spike_rate_dict = {
+        'relu1': [[] for x in range(8)],
+        'relu2': [[] for x in range(8)],
+        'relu3': [[] for x in range(8)],
+        'relu4': [[] for x in range(8)],
+        'relu5': [[] for x in range(8)],
+        'relu6': [[] for x in range(8)],
+        'relu7': [[] for x in range(8)],
+        'relu8': [[] for x in range(8)],
+        'relu9': [[] for x in range(8)],
+        'relu10': [[] for x in range(8)],
+        'relu11': [[] for x in range(8)],
+        'relu12': [[] for x in range(8)],
+        'relu13': [[] for x in range(8)]
+    }
     if os.path.exists(r'{}/Vth_timestep.txt'.format(folder_path)): os.remove(r'{}/Vth_timestep.txt'.format(folder_path))
     if os.path.exists(r'{}/Vmem_timestep.txt'.format(folder_path)): os.remove(r'{}/Vmem_timestep.txt'.format(folder_path))
     if os.path.exists(r'{}/Vrd_timestep.txt'.format(folder_path)): os.remove(r'{}/Vrd_timestep.txt'.format(folder_path))
@@ -60,6 +75,7 @@ def evaluate_snn(test_iter, snn, device=None, duration=50, plot=False, linetype=
         with torch.no_grad():
             clean_mem_spike(snn)
             acc = []
+            index = 1
             for t in range(duration):
                 out += snn(test_x)
                 f = open('{}/Vth_timestep.txt'.format(folder_path), 'a+')
@@ -75,7 +91,18 @@ def evaluate_snn(test_iter, snn, device=None, duration=50, plot=False, linetype=
                 result = result.to(device)
                 acc_sum = (result == test_y).float().sum().item()
                 acc.append(acc_sum / n)
+
+                # if (t + 1) % 32 == 0:
+                #     for name, layer in snn.named_modules():
+                #         if isinstance(layer, SNode):
+                #             spike_rate_dict['relu' + str(index)][(t + 1) // 32 - 1].append(
+                #                 (layer.all_spike.sum() / layer.all_spike.view(-1).shape[0]).cpu())
+                #             index += 1
+                #     index = 1
+            # if ind >= 1:
+            #     break
         accs.append(np.array(acc))
+
     if True:
         f = open('{}/result.txt'.format(folder_path), 'w')
         f.write("Setting Arguments.. : {}\n".format(args))
@@ -87,6 +114,26 @@ def evaluate_snn(test_iter, snn, device=None, duration=50, plot=False, linetype=
         f.write("use for latex tabular: & {:.2f} & {:.2f} & {:.2f} & {:.2f} & {:.2f}".format(max(accs) * 100, accs[31]* 100,
                                                                                          accs[63]*100, accs[127]*100, accs[255]*100))
         f.close()
+        accs = torch.from_numpy(accs)
+        torch.save(accs, "{}/accs.pth".format(folder_path))
+
+        # f = open('{}/result_firingRate.txt'.format(folder_path), 'w')
+        # for x in range(8):
+        #     index = 1
+        #     f.write("-----------------timestep:{}-----------------\n".format((x + 1) * 32))
+        #     for name, layer in net.named_modules():
+        #         if isinstance(layer, SNode):
+        #             f.write("relu{}: average spike number: {}\n".format(index, torch.stack(
+        #                 spike_rate_dict['relu' + str(index)][x]).mean()))
+        #             index += 1
+        # for x in range(8):
+        #     index = 1
+        #     f.write("-----------------timestep:{}-----------------\n".format((x + 1) * 32))
+        #     for name, layer in net.named_modules():
+        #         if isinstance(layer, SNode):
+        #             f.write("relu{}: average spike rate: {}\n".format(index, torch.stack(
+        #                 spike_rate_dict['relu' + str(index)][x]).mean() / ((x + 1) * 32)))
+        #             index += 1
 
         if plot:
             plt.plot(list(range(len(accs))), accs, linetype)
@@ -123,14 +170,23 @@ if __name__ == '__main__':
 
     net.eval()
     net = net.to(device)
-
+    net1 = deepcopy(net)
     acc = evaluate_accuracy(test_iter, net, device)
     print("acc on ann is : {:.4f}".format(acc))
 
+    # data = iter(test_iter).next()[0].to(device)
+    # data = data[0, :, :, :].unsqueeze(0)
+    # net(data, compute_efficiency=True)
+
     converter = Converter(train_iter, device, args.p, args.lateral_inhi,
-                          args.gamma, args.smode, args.VthHand, args.useDET)
+                          args.gamma, args.smode, args.VthHand, args.useDET, args.useDTT)
     snn = converter(net)  # use threshold balancing or not
     # snn = fuseConvBN(snn)
 
-    evaluate_snn(test_iter, snn, device, duration=args.T)
+
+    converter = Converter(train_iter, device, args.p, args.lateral_inhi,
+                          args.gamma, False, args.VthHand, args.useDET, args.useDET)
+    net1 = converter(net1)  # use threshold balancing or not
+
+    evaluate_snn(test_iter, snn, net1, device, duration=args.T)
 

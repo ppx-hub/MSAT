@@ -1,0 +1,97 @@
+\documentclass[a4paper,11pt,onecolumn,oneside,UTF8]{article}
+
+\newcommand*{\dif}{\mathop{}\!\mathrm{d}}
+\usepackage{ctex}
+ % 中文支持
+\usepackage{amsthm,amsmath,amssymb}
+\usepackage{mathrsfs}
+\usepackage{bm}
+\usepackage{graphicx, subfigure}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{color}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{pythonhighlight}
+\usepackage{hyperref}
+\addtolength{\topmargin}{-54pt}
+\setlength{\oddsidemargin}{-0.9cm}
+\setlength{\evensidemargin}{\oddsidemargin}
+\setlength{\textwidth}{17.00cm}
+\setlength{\textheight}{24.00cm}
+% 24.62
+
+\begin{document}
+
+\begin{center}
+     \Huge\textbf{Spiking Calibration}\footnote[1]{*:seed 23, train\_batch 512, test\_batch 1}
+     \\[20pt]
+     \Large\textnormal{2022 年5 月}
+\end{center}
+
+
+\begin{table}[h]
+
+    \resizebox{\textwidth}{!}{
+
+\begin{tabular}{|c|c|cllllcc|c|}
+     \hline Dataset & Network & Method & Metrics & ANN & $T=32$ & $T=64$ & $T=128$ & $T=256$ & KLDiv($T=256$) \\
+     \hline
+     \multirowcell{20}{ VOC2011ClassSeg } 
+     & \multirowcell{20}{ Fcn32s } 
+     & \multirowcell{4}{P-Norm } & pixel acc. & 89.09 & 84.15 & 87.38 & 88.32 & 88.56 & \multirowcell{4}{1061.68 } \\
+     & & & mean acc.& 74.24 & 62.01 & 68.50 & 70.64 & 71.59 &  \\
+     & & & mean IU & 59.54 & 44.85 & 53.94 & 56.82 & 57.67 &  \\
+     & & & f.w. IU & 81.49 & 74.61 & 78.87 & 80.29 & 80.73 &  \\
+     \cline{3-10}
+     & & \multirowcell{4}{P-Norm + Burst } & pixel acc.& 89.09 & 84.82 & 87.81 & 88.57 & 88.75 & \multirowcell{4}{773.45 } \\
+     & & & mean acc.& 74.24 & 63.75 & 70.85 & 72.62 & 72.85 &  \\
+     & & & mean IU & 59.54 & 46.74 & 55.76 & 58.24 & 58.62 & \\
+     & & & f.w. IU & 81.49 & 75.40 & 78.31 & 80.79 & 81.08 & \\
+     \cline{3-10}
+     & & \multirowcell{4}{\textbf{P-Norm + Burst + LIPooling} } & pixel acc.& \textbf{89.09} & \textbf{83.44} & \textbf{87.74} & \textbf{88.86} & \textbf{89.07} & \multirowcell{4}{ \textbf{92.21} } \\
+     & & & mean acc. & \textbf{74.24} & \textbf{57.57} & \textbf{69.86} & \textbf{73.38} & \textbf{74.08} &  \\
+     & & & mean IU & \textbf{59.54} & \textbf{42.92} & \textbf{55.04} & \textbf{58.76} & \textbf{59.45} &  \\
+     & & & f.w. IU & \textbf{81.49} & \textbf{72.61} & \textbf{79.16} & \textbf{81.01} & \textbf{81.40} &  \\
+     \cline{3-10}
+     & & \multirowcell{4}{P-Norm + Burst + Spicalib(128) }& pixel acc.& 89.09 & 84.82 & 87.81 & 88.58 & 88.66 & \multirowcell{4}{947.45 } \\
+     & & & mean acc.& 74.24 & 63.75 & 70.85 & 72.62 & 73.24 &  \\
+     & & &mean IU & 59.54 & 46.76 & 55.76 & 28.24 & 58.46 &  \\
+     & & & f.w. IU& 81.49 & 57.51 & 75.40 & 80.79 & 81.04 &  \\
+     \cline{3-10}
+     & & \multirowcell{4}{\textbf{P-Norm + Burst + LIPooling + Spicalib(128)} }& pixel acc.& \textbf{89.09} & \textbf{83.44} & \textbf{87.74} & \textbf{88.86} & \textbf{89.07} & \multirowcell{4}{ \textbf{68.40} } \\
+     & & & mean acc.& \textbf{74.24} & \textbf{57.57} & \textbf{69.86} & \textbf{73.38} & \textbf{74.66} &  \\
+     & & &mean IU & \textbf{59.54} & \textbf{42.92} & \textbf{55.04} & \textbf{58.76} & \textbf{59.56} & \\
+     & & & f.w. IU& \textbf{81.49} & \textbf{72.61} & \textbf{79.17} & \textbf{81.01} & \textbf{81.49} & \\
+     \cline{1-10}
+    \end{tabular} 
+    }
+    
+    \end{table}
+    
+    \begin{itemize}
+     \item seed均设为23
+     \item p设置为0.999
+    \end{itemize}
+
+
+    {
+\begin{center}
+\begin{tabular}{|r|r|r|r|}
+	\hline
+     & & \textbf{\# MACs} & \textbf{firing rate} & \textbf{SNN}\\
+	\hline
+	\text{Input:} & (365,500,3) &  & 0\\
+    \hline
+    \text{CONV1_1(k=3,cin=3,cout=64,p=100)} & (563,698,64) & 365*500*3*64*3*3=313632000 & 0\\
+	\hline
+    \text{CONV1_2(k=3,cin=64,cout=64)} & (563,698,64) & 563*698*64*64*3*3= 1448659354 & 0\\
+    \hline
+
+\end{tabular}
+\end{center}
+}
+    \end{document}
