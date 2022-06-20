@@ -65,8 +65,12 @@ if model_name == "resnet20":
     ax1.set_ylim(0.8, 0.808)
 ax.indicate_inset_zoom(ax1)
 
-plt.legend(['0.5 x vth', '0.7 x vth', '0.9 x vth', 'With DTT',
-            'With DET', 'With DTT DET', 'Target Acc: {}'.format(acc_target)], fontsize=10, bbox_to_anchor=[0.62, 0.42, 0, 0])
+if model_name == "vgg16":
+    plt.legend(['0.5 x vth', '0.7 x vth', '0.9 x vth', 'With DTT',
+                'With DET', 'With DTT DET', 'Target Acc: {}'.format(acc_target)], fontsize=10, bbox_to_anchor=[0.62, 0.42, 0, 0])
+if model_name == "resnet20":
+    plt.legend(['0.5 x vth', '0.7 x vth', '0.9 x vth', 'With DTT',
+                'With DET', 'With DTT DET', 'Target Acc: {}'.format(acc_target)], fontsize=10, bbox_to_anchor=[1.0, 0.42, 0, 0])
 # plt.title('Spiking VGG16 on CIFAR100 Dataset')
 plt.ylim([0, 0.81])
 plt.xlim([0, 256])

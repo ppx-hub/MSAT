@@ -413,7 +413,7 @@ class HookScale(nn.Module):
 
 
 class Converter(nn.Module):
-    def __init__(self, dataloader, device=None, p=0.9995,  lateral_inhi=True, gamma=1, smode=True, VthHand=False, useDET=False, useDTT=False):
+    def __init__(self, dataloader, device=None, p=0.9995,  lateral_inhi=True, gamma=1, smode=True, VthHand=False, useDET=False, useDTT=False, model_name=None):
         super().__init__()
         self.dataloader = dataloader
         self.device = device
@@ -424,6 +424,7 @@ class Converter(nn.Module):
         self.VthHand = VthHand
         self.useDET = useDET
         self.useDTT = useDTT
+        self.model_name = model_name
     def forward(self, model):
         model.eval()
         # print('register hook scale...')
@@ -439,7 +440,7 @@ class Converter(nn.Module):
         model(data)
         print('finish get max-value!')
         model = self.replace_for_spike(model, smode=self.smode, gamma=self.gamma, lateral_inhi=self.lateral_inhi,
-                                       VthHand=self.VthHand, useDET=self.useDET, useDTT=self.useDTT)
+                                       VthHand=self.VthHand, useDET=self.useDET, useDTT=self.useDTT, model_name=self.model_name)
         # for name, child in model.named_modules():
         #     if isinstance(child, SNode):
         #         print("+1")
@@ -462,12 +463,12 @@ class Converter(nn.Module):
         return model
 
     @staticmethod
-    def replace_for_spike(model, smode=True, gamma=1, lateral_inhi=True, VthHand=False, useDET=False, useDTT=False):
+    def replace_for_spike(model, smode=True, gamma=1, lateral_inhi=True, VthHand=False, useDET=False, useDTT=False, model_name=None):
         children = list(model.named_children())
         for i, (name, child) in enumerate(children):
             if isinstance(child, nn.Sequential) and len(child) == 2 and isinstance(child[0], nn.ReLU) and isinstance(child[1], HookScale):
                 # print(child[1].scale)
-                model._modules[name] = SNode(smode=smode, gamma=gamma, maxThreshold=child[1].scale, VthHand=VthHand, useDET=useDET, useDTT=useDTT)
+                model._modules[name] = SNode(smode=smode, gamma=gamma, maxThreshold=child[1].scale, VthHand=VthHand, useDET=useDET, useDTT=useDTT, model_name=model_name)
             elif isinstance(child, nn.Sequential) and len(child) == 2 and isinstance(child[0], nn.Conv2d) and isinstance(child[1], HookScale):
                 model._modules[name] = child[0]
             elif isinstance(child, nn.Sequential) and len(child) == 2 and isinstance(child[0], nn.BatchNorm2d) and isinstance(child[1], HookScale):
@@ -475,7 +476,7 @@ class Converter(nn.Module):
             elif isinstance(child, nn.Sequential) and len(child) == 2 and isinstance(child[0], nn.MaxPool2d) and isinstance(child[1], HookScale):
                 model._modules[name] = SMaxPool(child[0], smode=smode, lateral_inhi=lateral_inhi)
             else:
-                Converter.replace_for_spike(child, smode, gamma, lateral_inhi, VthHand, useDET, useDTT)
+                Converter.replace_for_spike(child, smode, gamma, lateral_inhi, VthHand, useDET, useDTT, model_name)
         return model
 
 
@@ -513,7 +514,7 @@ class Scale(nn.Module):
 
 
 class SNode(nn.Module):
-    def __init__(self, smode=True, gamma=5,maxThreshold=1.0, VthHand=False, useDET=False, useDTT=False):
+    def __init__(self, smode=True, gamma=5,maxThreshold=1.0, VthHand=False, useDET=False, useDTT=False, model_name=None):
         super(SNode, self).__init__()
         self.smode = smode
         self.threshold = maxThreshold  # theta_i^l(t)
@@ -539,6 +540,15 @@ class SNode(nn.Module):
         self.VthHand = VthHand
         self.useDET = useDET
         self.useDTT = useDTT
+        self.model_name = model_name
+
+        # hyperparameters
+        self.alpha = 0
+        self.ka = 0
+        self.ki = 0
+        self.C = 0
+        self.tau_mp = 0
+        self.tau_rd = 0
     def forward(self, x):
         global folder_path
         if not self.smode:
@@ -556,9 +566,24 @@ class SNode(nn.Module):
                 if self.t == 0:
                     self.threshold = torch.full(x.shape, 1 * self.maxThreshold).cuda()
                     self.V_T = -torch.full(x.shape, self.maxThreshold).cuda()
+                    # init hyperparameters
+                    hp = []
+                    path = FolderPath.folder_path.split('/')
+                    path = os.path.join(path[0], path[1], path[2], 'hyperparameters.txt')
+                    with open(path, 'r') as f:
+                        data = f.readlines()  # 将txt中所有字符串读入data
+                        for ind, line in enumerate(data):
+                            numbers = line.split()  # 将数据分隔
+                            hp.append(list(map(float, numbers))[0])  # 转化为浮点数
+                    self.alpha = hp[0]
+                    self.ka = hp[1]
+                    self.ki = hp[2]
+                    self.C = hp[3]
+                    self.tau_mp = hp[4]
+                    self.tau_rd = hp[5]
                 else:
-                    DTT = 1/2 * (0.3 * (self.last_mem - self.Vm) + self.V_T + torch.log(1 + torch.exp((self.last_mem - self.Vm) / 1.0)))
-                    DET = 1/2 * torch.exp(-1 * x / 5.0)
+                    DTT = self.tau_mp * (self.alpha * (self.last_mem - self.Vm) + self.V_T + self.ka * torch.log(1 + torch.exp((self.last_mem - self.Vm) / self.ki)))
+                    DET = self.tau_rd * torch.exp(-1 * x / self.C)
                     if self.useDET is True and self.useDTT is True:
                         self.threshold = DET + DTT
                     elif self.useDTT is True:
@@ -579,18 +604,18 @@ class SNode(nn.Module):
             self.last_mem = self.mem
             self.summem += self.mem
             self.Vm = (self.summem / self.t)
-            # if self.record is True:
-            #     f = open('{}/Vrd_timestep.txt'.format(FolderPath.folder_path), 'a+')
-            #     f.write("{:.3f} ".format(x[1, 1, 1, 1].item()))  # 随便挑一个
-            #     f.close()
-            # if self.record is True:
-            #     f = open('{}/Vmem_timestep.txt'.format(FolderPath.folder_path), 'a+')
-            #     f.write("{:.3f} ".format((self.last_mem[1, 1, 1, 1] - self.Vm[1, 1, 1, 1]).item()))  # 随便挑一个
-            #     f.close()
-            # if self.record is True:
-            #     f = open('{}/Vth_timestep.txt'.format(FolderPath.folder_path), 'a+')
-            #     f.write("{:.3f} ".format((self.threshold[1, 1, 1, 1] / self.maxThreshold).item()))  # 随便挑一个
-            #     f.close()
+            if self.record is True:
+                f = open('{}/Vrd_timestep.txt'.format(FolderPath.folder_path), 'a+')
+                f.write("{:.3f} ".format(x[1, 1, 1, 1].item()))  # 随便挑一个
+                f.close()
+            if self.record is True:
+                f = open('{}/Vmem_timestep.txt'.format(FolderPath.folder_path), 'a+')
+                f.write("{:.3f} ".format((self.last_mem[1, 1, 1, 1] - self.Vm[1, 1, 1, 1]).item()))  # 随便挑一个
+                f.close()
+            if self.record is True:
+                f = open('{}/Vth_timestep.txt'.format(FolderPath.folder_path), 'a+')
+                f.write("{:.3f} ".format((self.threshold[1, 1, 1, 1] / self.maxThreshold).item()))  # 随便挑一个
+                f.close()
 
         return out
 

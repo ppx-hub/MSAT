@@ -41,7 +41,8 @@
 \usepackage{makecell}
 \usepackage{wrapfig}	
 \usepackage{bbding}
-
+\usepackage{caption}
+\usepackage{subfigure}
 \bibliographystyle{plain}
 
 \usepackage{amsthm,amsmath,amssymb}
@@ -380,11 +381,7 @@ The pseudocodes for adaptive threshold algorithm are shown in Algorithm 1.
 \section{EXPERIMENTS}
 
 
-Do not change any aspects of the formatting parameters in the style files.  In
-particular, do not modify the width or length of the rectangle the text should
-fit into, and do not change font sizes (except perhaps in the
-\textbf{References} section; see below). Please note that pages should be
-numbered.
+Extensive experiments 
 
 \begin{table}[!t]
   \centering
@@ -405,7 +402,7 @@ numbered.
         Opt.\cite{deng2021optimal} &\XSolid& 77.89& 77.71 & 7.64 & 21.84 & 55.04 & 73.54\\
         Calibration\cite{li2021free} &\XSolid& 77.89 & 77.87 & 73.55 & 76.64 & 77.40 & 77.68\\
         Burst \cite{li2022efficient} &\XSolid& 78.49 & 78.71 & 74.98 & 78.26 & 78.66 & 78.65 \\
-        \textbf{This Work} &\Checkmark&78.49 & \textbf{78.26} & \textbf{34.24} & \textbf{63.05} & \textbf{75.66} & \textbf{78.25} \\
+        \textbf{This Work} &\Checkmark&78.49 & \textbf{78.64} & \textbf{63.26} & \textbf{75.46} & \textbf{78.13} & \textbf{78.58} \\
         \midrule
         \multicolumn{8}{c}{\textbf{ResNet20, CIFAR100}}\\
         \midrule
@@ -417,24 +414,57 @@ numbered.
         Opt.\cite{deng2021optimal} &\XSolid& 77.16& 77.22 & 51.27 & 70.12 & 75.81 & 77.22\\
         Calibration\cite{li2021free} &\XSolid& 77.16 & 77.73 & 76.32 & 77.29 & 77.73 & 77.63\\
         Burst \cite{li2022efficient}  &\XSolid& 80.69& 80.72 & 76.39 & 79.83 & 80.52 & 80.57   \\
-        \textbf{This Work } &\Checkmark&80.69 & \textbf{80.58} & \textbf{62.96} & \textbf{76.41} & \textbf{79.52} & \textbf{80.44}\\
+        \textbf{This Work } &\Checkmark&80.69 & \textbf{80.58} & \textbf{71.98} & \textbf{78.58} & \textbf{80.25} & \textbf{80.57}\\
         \bottomrule
     \end{tabular}}
   \end{threeparttable}
   \label{cifar100}
 \end{table}
 
-Table x: Classification accuracy on CIFAR and ImageNet for our converted SNNs, and compared to other conversion methods and ANN.
-
-
-
-\begin{figure}[h]
+\begin{table}[!t]
   \centering
-  \includegraphics[width=0.5\textwidth]{./fig/acc_cifar10_vgg16.pdf}
-  \includegraphics[width=0.5\textwidth]{./fig/acc_cifar10_resnet20.pdf}
-  \caption{The acc curves on CIFAR10 datasets based on VGG16 and ResNet20.}
-\end{figure}
+  \caption{Summary of given hyperparameters on different network}
+  \setlength{\tabcolsep}{9mm}{
+      \begin{tabular}{c | c | c}
+        \toprule
+        Symbol& VGG16 &ResNet20 \\
+        \midrule
+        $\alpha$ & 0.03 & 0.3 \\
+        $k_a$ & 1 & 1\\
+        $k_i$ & 1.0 & 1.0\\
+        $C$ & 5.0 & 5.0 \\
+        $\tau_{mp}$ & 1 & 0.5\\
+        $\tau_{rd}$ & 1 & 0.5\\
+        \bottomrule
+    \end{tabular}}
+  \label{hyperparameters}
+\end{table}
 
+
+
+
+\begin{figure}[htbp]
+  \centering
+  \subfigure[pic1.]{
+  \includegraphics[width=6cm]{./fig/acc_cifar10_vgg16.pdf}
+  %\caption{fig1}
+  }
+  \quad
+  \subfigure[pic2.]{
+  \includegraphics[width=6cm]{./fig/acc_cifar10_resnet20.pdf}
+  }
+
+  \subfigure[pic3.]{
+    \includegraphics[width=6cm]{./fig/acc_cifar100_vgg16.pdf}
+    %\caption{fig1}
+    }
+    \quad
+    \subfigure[pic4.]{
+    \includegraphics[width=6cm]{./fig/acc_cifar100_resnet20.pdf}
+    }
+
+  \caption{ pics}
+  \end{figure}
 
 \begin{figure}[h]
   \centering
@@ -443,27 +473,7 @@ Table x: Classification accuracy on CIFAR and ImageNet for our converted SNNs, a
 \end{figure}
 
 
-\begin{table}[htbp]
 
-  \resizebox{\textwidth}{!}{
-
-\begin{tabular}{lllllllccc}
-  \hline Dataset & Method & Network & ANN & SNN Best & $T=32$ & $T=64$ & $T=128$ & $T=256$ \\
-  \hline
-  \multirow{2}{*}{ VOC }
-  & \textbf{Kim's Work (channel-norm)} & Tiny-yolo & - & - & - & - & - & - \\
-  & \textbf{This Work (MSAT)} & YOLOv1 & - & - & - & - & - & - \\
-
-  \hline
-  \multirow{2}{*}{ COCO }
-  & \textbf{Kim's Work (channel-norm)} & Tiny-yolo & - & - & - & - & - & - \\
-  & \textbf{This Work (MSAT)} & YOLOv1 & - & - & - & - & - & - \\
-  \hline
-\end{tabular}
-  
-}
-
-\end{table}
 
 Table x: detection mAP on VOC and COCO for our converted SNNs, and compared to other conversion methods and ANN.
 

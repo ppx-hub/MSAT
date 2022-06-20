@@ -41,10 +41,16 @@ args = parser.parse_args()
 
 
 def evaluate_snn(test_iter, snn, net, device=None, duration=50, plot=False, linetype=None):
-    folder_path = "./result_conversion_{}/snn_p{}_VthHand{}_useDET_{}_useDTT_{}".format(
-            args.model_name, args.p, args.VthHand, args.useDET, args.useDTT)
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
+    t = 1
+    folder_path = ""
+    while True:
+        folder_path = "./result_conversion_{}/parameters_group{}/snn_p{}_VthHand{}_useDET_{}_useDTT_{}".format(
+            args.model_name, t, args.p, args.VthHand, args.useDET, args.useDTT)
+        if os.path.exists(folder_path):
+            t += 1
+        else:
+            os.makedirs(folder_path)
+            break
     FolderPath.folder_path = folder_path
     linetype = '-' if linetype == None else linetype
     accs = []
@@ -92,13 +98,14 @@ def evaluate_snn(test_iter, snn, net, device=None, duration=50, plot=False, line
                 acc_sum = (result == test_y).float().sum().item()
                 acc.append(acc_sum / n)
 
-                # if (t + 1) % 32 == 0:
-                #     for name, layer in snn.named_modules():
-                #         if isinstance(layer, SNode):
-                #             spike_rate_dict['relu' + str(index)][(t + 1) // 32 - 1].append(
-                #                 (layer.all_spike.sum() / layer.all_spike.view(-1).shape[0]).cpu())
-                #             index += 1
-                #     index = 1
+                if args.model_name == "vgg16":
+                    if (t + 1) % 32 == 0:
+                        for name, layer in snn.named_modules():
+                            if isinstance(layer, SNode):
+                                spike_rate_dict['relu' + str(index)][(t + 1) // 32 - 1].append(
+                                    (layer.all_spike.sum() / layer.all_spike.view(-1).shape[0]).cpu())
+                                index += 1
+                        index = 1
             # if ind >= 1:
             #     break
         accs.append(np.array(acc))
@@ -117,23 +124,24 @@ def evaluate_snn(test_iter, snn, net, device=None, duration=50, plot=False, line
         accs = torch.from_numpy(accs)
         torch.save(accs, "{}/accs.pth".format(folder_path))
 
-        # f = open('{}/result_firingRate.txt'.format(folder_path), 'w')
-        # for x in range(8):
-        #     index = 1
-        #     f.write("-----------------timestep:{}-----------------\n".format((x + 1) * 32))
-        #     for name, layer in net.named_modules():
-        #         if isinstance(layer, SNode):
-        #             f.write("relu{}: average spike number: {}\n".format(index, torch.stack(
-        #                 spike_rate_dict['relu' + str(index)][x]).mean()))
-        #             index += 1
-        # for x in range(8):
-        #     index = 1
-        #     f.write("-----------------timestep:{}-----------------\n".format((x + 1) * 32))
-        #     for name, layer in net.named_modules():
-        #         if isinstance(layer, SNode):
-        #             f.write("relu{}: average spike rate: {}\n".format(index, torch.stack(
-        #                 spike_rate_dict['relu' + str(index)][x]).mean() / ((x + 1) * 32)))
-        #             index += 1
+        if args.model_name == "vgg16":
+            f = open('{}/result_firingRate.txt'.format(folder_path), 'w')
+            for x in range(8):
+                index = 1
+                f.write("-----------------timestep:{}-----------------\n".format((x + 1) * 32))
+                for name, layer in net.named_modules():
+                    if isinstance(layer, SNode):
+                        f.write("relu{}: average spike number: {}\n".format(index, torch.stack(
+                            spike_rate_dict['relu' + str(index)][x]).mean()))
+                        index += 1
+            for x in range(8):
+                index = 1
+                f.write("-----------------timestep:{}-----------------\n".format((x + 1) * 32))
+                for name, layer in net.named_modules():
+                    if isinstance(layer, SNode):
+                        f.write("relu{}: average spike rate: {}\n".format(index, torch.stack(
+                            spike_rate_dict['relu' + str(index)][x]).mean() / ((x + 1) * 32)))
+                        index += 1
 
         if plot:
             plt.plot(list(range(len(accs))), accs, linetype)
@@ -179,13 +187,13 @@ if __name__ == '__main__':
     # net(data, compute_efficiency=True)
 
     converter = Converter(train_iter, device, args.p, args.lateral_inhi,
-                          args.gamma, args.smode, args.VthHand, args.useDET, args.useDTT)
+                          args.gamma, args.smode, args.VthHand, args.useDET, args.useDTT, args.model_name)
     snn = converter(net)  # use threshold balancing or not
     # snn = fuseConvBN(snn)
 
 
     converter = Converter(train_iter, device, args.p, args.lateral_inhi,
-                          args.gamma, False, args.VthHand, args.useDET, args.useDET)
+                          args.gamma, False, args.VthHand, args.useDET, args.useDET, args.model_name)
     net1 = converter(net1)  # use threshold balancing or not
 
     evaluate_snn(test_iter, snn, net1, device, duration=args.T)
