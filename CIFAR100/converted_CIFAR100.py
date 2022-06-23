@@ -26,6 +26,7 @@ parser.add_argument('--T', default=256, type=int, help='simulation time')
 parser.add_argument('--p', default=1, type=float, help='percentile for data normalization. 0-1')
 parser.add_argument('--gamma', default=1, type=int, help='burst spike and max spikes IF can emit')
 parser.add_argument('--lateral_inhi', default=True, type=bool, help='LIPooling')
+parser.add_argument('--sin_t', default=256, type=int, help='sin timestep')
 parser.add_argument('--data_norm', default=True, type=bool, help=' whether use data norm or not')
 parser.add_argument('--smode', default=True, type=bool, help='replace ReLU to IF')
 parser.add_argument('--device', default='2', type=str, help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
@@ -117,10 +118,10 @@ def evaluate_snn(test_iter, snn, net, device=None, duration=50, plot=False, line
                                 index += 1
                         index = 1
 
-                if t == 15:
+                if (t + 1) == args.sin_t:
                     for layer_ann, layer_snn in zip(net.modules(), snn.modules()):
                         if isinstance(layer_snn, SNode):
-                            sin = float(torch.sum((layer_snn.sumspike > 0) & (x < 0)))
+                            sin = float(torch.sum((layer_snn.sumspike > 8) & (x < 0)))
                             ann = float(layer_snn.spike.numel())
                             layer_snn.sin_ratio.append(sin / ann)
 
@@ -130,7 +131,6 @@ def evaluate_snn(test_iter, snn, net, device=None, duration=50, plot=False, line
                             if isinstance(layer_ann, nn.Linear):
                                 x = x.view(x.shape[0], -1)
                             x = layer_ann(x)
-
         accs.append(np.array(acc))
 
     if True:

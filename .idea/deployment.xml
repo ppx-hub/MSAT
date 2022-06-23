@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" serverName="hexiang@210.75.240.12:22" remoteFilesAllowedToDisappearOnAutoupload="false">
+  <component name="PublishConfigData" serverName="hexiang@172.18.116.131:22 (1)" remoteFilesAllowedToDisappearOnAutoupload="false">
     <serverData>
       <paths name="hexiang@172.18.116.130:22">
         <serverdata>
@@ -33,7 +33,8 @@
       <paths name="hexiang@172.18.116.131:22 (1)">
         <serverdata>
           <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/home/hexiang/MSAT" local="$PROJECT_DIR$" web="/" />
+            <mapping local="" />
           </mappings>
         </serverdata>
       </paths>

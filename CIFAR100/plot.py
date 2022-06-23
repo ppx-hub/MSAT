@@ -7,6 +7,7 @@ import numpy as np
 import sys
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
+from matplotlib.pyplot import MultipleLocator
 
 
 
@@ -22,7 +23,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
 no_16 = []
-root = "/home/hexiang/MSAT/CIFAR100/result_conversion_vgg16/parameters_group2/snn_p1_VthHand0.7_useDET_False_useDTT_False"
+root = "/home/hexiang/MSAT/CIFAR100/result_conversion_vgg16/parameters_group3/snn_p1_VthHand1.0_useDET_False_useDTT_False"
 path = os.path.join(root, "result_SINRate.txt")
 with open(path, 'r') as f:
     data = f.readlines()  # 将txt中所有字符串读入data
@@ -31,7 +32,7 @@ with open(path, 'r') as f:
         no_16.append(list(map(float, numbers))[0])
 
 have_16 = []
-root = "/home/hexiang/MSAT/CIFAR100/result_conversion_vgg16/parameters_group1/snn_p1_VthHand-1.0_useDET_True_useDTT_True"
+root = "/home/hexiang/MSAT/CIFAR100/result_conversion_vgg16/parameters_group1/snn_p1_VthHand1.0_useDET_False_useDTT_False"
 path = os.path.join(root, "result_SINRate.txt")
 with open(path, 'r') as f:
     data = f.readlines()  # 将txt中所有字符串读入data
@@ -39,16 +40,28 @@ with open(path, 'r') as f:
         numbers = line.split()  # 将数据分隔
         have_16.append(list(map(float, numbers))[0])
 
+have_32 = []
+root = "/home/hexiang/MSAT/CIFAR100/result_conversion_vgg16/parameters_group2/snn_p1_VthHand1.0_useDET_False_useDTT_False"
+path = os.path.join(root, "result_SINRate.txt")
+with open(path, 'r') as f:
+    data = f.readlines()  # 将txt中所有字符串读入data
+    for ind, line in enumerate(data):
+        numbers = line.split()  # 将数据分隔
+        have_32.append(list(map(float, numbers))[0])
 index = np.arange(1, 14)
 
 fig, ax = plt.subplots()
 bar_width = 0.3
 
-ax.bar(index, no_16, bar_width, color='b', label='all')
-ax.bar(index + bar_width, have_16, bar_width, color='m', label='16')
-
+ax.bar(index, no_16, bar_width, color='b', label='timestep 256')
+ax.bar(index + bar_width, have_16, bar_width, color='m', label='timestep 16')
+ax.bar(index + bar_width * 2, have_32, bar_width, color='r', label='timestep 32')
 ax.legend()
-plt.title('sin ratio')
+
+ax.xaxis.set_major_locator(MultipleLocator(1))
+ax.set_xlabel("layer index")
+ax.set_ylabel("sin ratio")
+ax.set_title('sin ratio in each VGG16 layer')
 
 plt.show()
 plt.savefig("./sin_ratio.pdf")

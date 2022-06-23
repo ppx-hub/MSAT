@@ -265,7 +265,14 @@ We use $\mathcal{R}=\left\{j \middle\vert\ \sum_{t=0}^T\Theta_{t,j}^l >0, a_j^l(
 \end{equation}
 
 The neurons with SIN usually fire early and then silence during the conversion process.
-We statistics SIN proportion in each layer, it shows that SIN is prevalent and have larger proportion in deeper layer.
+We statistics SIN proportion in each layer, as shown in fig 2. It shows that SIN is prevalent and have larger proportion in deeper layer.
+What's more, It is clear that most of SIN appear in early 32 timestep, that's why early timestep accuracy suffer from more degration.
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\textwidth]{./fig/sin_ratio.pdf}
+  \caption{SIN ratio in each VGG16 layer. SIN have larger proportion in deeper layer early, account for early timestep accuracy suffer from more degration.}
+\end{figure}
+
 \section{Method}
 \subsection{adaptive threshold still holds}
 Let's take a look at existing methods, no matter weight normalization or threshold balancing, they aim at zipping the gap between ANN and SNN. Though, we should be aware that
@@ -373,6 +380,13 @@ The pseudocodes for adaptive threshold algorithm are shown in Algorithm 1.
 	\end{algorithmic} 
 \end{algorithm}
 
+\subsection{Error After MSAT}
+
+The optimization target is 
+\begin{equation}
+  \operatorname{min}\sum\limits_{V_{th,i}^l(T)}\left(\operatorname{clipfloor}\left(W_{ij}^lr_j^{l-1}, T, V_{th,i}^l(T)\right) - \frac{\sum_{j \in \mathcal{R}} \sum_{t=0}^TW_{ij}^l\Theta_{t,j}^l }{T} - \operatorname{ReLU}\left(W_{ij}^lr_j^{l-1}\right)\right)
+\end{equation}
+A trivial solution to this is $V_{th,i}^l=W_{ij}^lr_j^l$, it means voltage threshold eaquals to input value for each neuron. With this solution, ANN can be converted to SNN only one timestep, however, this SNN elicit spike every timestep and lose spike sparsity, so it is not reasonable and makes no sense.
 
 \section{Related Work}
 others

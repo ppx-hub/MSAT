@@ -496,6 +496,7 @@ def clean_mem_spike(m):
             child.mem_16 = 0
             child.spike_mask = 0
             child.sin_spikenum = 0
+            child.last_spike = 0
         elif isinstance(child, SMaxPool):
             child.input = 0
             child.sum = 0
@@ -558,6 +559,7 @@ class SNode(nn.Module):
         self.spike_mask = 0
         self.sin_spikenum = 0.0
         self.sin_ratio = []
+        self.last_spike = 0
     def forward(self, x):
         global folder_path
         if not self.smode:
@@ -569,11 +571,12 @@ class SNode(nn.Module):
 
             if self.VthHand != -1:
                 if self.t == 0:
-                    self.threshold = torch.full(x.shape, self.VthHand * self.maxThreshold).cuda()
+                    self.threshold = torch.full(x.shape, 0.1 * self.VthHand * self.maxThreshold).cuda()
             else:
                 if self.t == 0:
                     self.threshold = torch.full(x.shape, 1 * self.maxThreshold).cuda()
                     self.V_T = -torch.full(x.shape, self.maxThreshold).cuda()
+                    self.last_spike = torch.zeros_like(x)
                     # init hyperparameters
                     hp = []
                     path = FolderPath.folder_path.split('/')
@@ -612,6 +615,8 @@ class SNode(nn.Module):
             self.summem += self.mem
             self.Vm = (self.summem / self.t)
             self.sumspike += self.spike
+            spike_mask = self.spike > 0
+            self.last_spike =
             # if self.t == 24:
             #     self.spike_mask = (self.sumspike > 0) & (self.mem < 0)
             #     self.mem_16 = self.mem[self.spike_mask]
