@@ -493,6 +493,9 @@ def clean_mem_spike(m):
             child.threshold = child.maxThreshold
             child.last_mem = 0.0
             child.all_spike = 0.0
+            child.mem_16 = 0
+            child.spike_mask = 0
+            child.sin_spikenum = 0
         elif isinstance(child, SMaxPool):
             child.input = 0
             child.sum = 0
@@ -549,10 +552,15 @@ class SNode(nn.Module):
         self.C = 0
         self.tau_mp = 0
         self.tau_rd = 0
+
+        # record sin
+        self.mem_16 = 0.0
+        self.spike_mask = 0
+        self.sin_spikenum = 0.0
+        self.sin_ratio = []
     def forward(self, x):
         global folder_path
         if not self.smode:
-            if self.monitor: self.sum += x.cpu().detach()
             out = self.opration(x)
         else:
             # if self.t == 0:
@@ -598,25 +606,40 @@ class SNode(nn.Module):
             self.spike = (self.mem / self.threshold).floor().clamp(min=0, max=self.gamma)
             self.mem = self.mem - self.spike * self.threshold
             self.all_spike += self.spike
-            self.sumspike += self.spike * self.threshold
             out = self.spike * self.threshold
             self.t += 1
             self.last_mem = self.mem
             self.summem += self.mem
             self.Vm = (self.summem / self.t)
+            self.sumspike += self.spike
+            # if self.t == 24:
+            #     self.spike_mask = (self.sumspike > 0) & (self.mem < 0)
+            #     self.mem_16 = self.mem[self.spike_mask]
+            # if self.t == 255:
+            #     self.spike_mask = (self.mem[self.spike_mask] < 0) & ((self.mem[self.spike_mask] / self.mem_16) > 10)
+            #     self.sin_spikenum = self.spike_mask.numel()
+            #     self.sin_ratio.append(float(self.sin_spikenum) / float(self.spike.numel()))
+
             if self.record is True:
                 f = open('{}/Vrd_timestep.txt'.format(FolderPath.folder_path), 'a+')
-                f.write("{:.3f} ".format(x[1, 1, 1, 1].item()))  # 随便挑一个
-                f.close()
-            if self.record is True:
-                f = open('{}/Vmem_timestep.txt'.format(FolderPath.folder_path), 'a+')
-                f.write("{:.3f} ".format((self.last_mem[1, 1, 1, 1] - self.Vm[1, 1, 1, 1]).item()))  # 随便挑一个
-                f.close()
-            if self.record is True:
-                f = open('{}/Vth_timestep.txt'.format(FolderPath.folder_path), 'a+')
-                f.write("{:.3f} ".format((self.threshold[1, 1, 1, 1] / self.maxThreshold).item()))  # 随便挑一个
+                f.write("{:.3f} ".format(x[1, 1, 1, 1].item()))
                 f.close()
 
+                f = open('{}/Vmem_timestep.txt'.format(FolderPath.folder_path), 'a+')
+                f.write("{:.3f} ".format((self.mem[1, 1, 1, 1]).item()))
+                f.close()
+
+                f = open('{}/Spike_timestep.txt'.format(FolderPath.folder_path), 'a+')
+                f.write("{:.1f} ".format((self.spike[1, 1, 1, 1]).item()))
+                f.close()
+
+                f = open('{}/Vth_timestep.txt'.format(FolderPath.folder_path), 'a+')
+                f.write("{:.3f} ".format((self.threshold[1, 1, 1, 1]).item()))
+                f.close()
+
+                f = open('{}/Maxthreshold_timestep.txt'.format(FolderPath.folder_path), 'a+')
+                f.write("{:.3f} ".format(self.maxThreshold))
+                f.close()
         return out
 
 

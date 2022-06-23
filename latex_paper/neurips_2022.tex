@@ -157,17 +157,10 @@ Our major contribution can be summarized as:
 \end{itemize}
 
 
-\section{PRELIMINARIES}
+\section{Preliminaries}
 Our conversion pipeline exploits the threshold balancing mechanism (Diehl et al., 2015; Sengupta
 et al., 2018) between ANN and SNN with modified ReLU function on the source ANN to reduce
-the consequential conversion error. Through in this mechanism, we give a two-layer MLP conversion Framework 
-Diagram as fig1 to Convenient for our discussion.
-
-\begin{figure}[htbp]
-  \centering
-  \includegraphics[width=0.95\textwidth]{t.pdf}
-  \caption{A two-layer MLP conversion Framework for demonstration.}
-\end{figure}
+the consequential conversion error. 
 
 The main idea in ANN-to-SNN conversion is using mean firing rate $r_i^l(t)$ which indicates firing rate of neuron $i$ in layer $l$ for a total time t to approximate the activation value $a_i^l$ in SNN.
 Here we give analytical explanation for the approximation.
@@ -197,12 +190,13 @@ Here $z_i^l(t)$ is neuron $i$ inputs in layer $l$ and time $t$
 \end{equation}
 
 \section{Diving Conversion Error}
-Error comes from two part: one is converting ANN to SNN directly, result quantization error and clip error; the other is spike arrtribute, result residual potential error.
-show as fig 2
+Error comes from two part: one is converting ANN to SNN directly, result quantization error and clip error; the other is neuron transient dynamics and iiregular elicited spike, Spikes of Inactivated Neurons
+(SIN) error.
+show as fig 1
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.95\textwidth]{test.png}
-  \caption{Three error.}
+  \includegraphics[width=0.95\textwidth]{error.pdf}
+  \caption{Two part error:one is quantization error and clip error result from converting ANN to SNN directly, the other is spikes of inactivated neurons error whoese existence result from iiregular elicited spike. A two layer multilayer perceptron network for demonstration.}
 \end{figure}
 \subsection{Layer-By-Layer Quantization Error}
 
@@ -235,7 +229,8 @@ Use $\Delta V_i^l$ denotes $\frac{V_i^{l}(T)}{TV_{th}^l}$
     r_i^l(T) = a_i^l - \Delta V_i^l - \sum_j^{M^{l-1}}W_{ij}\Delta V_j^l - \cdots -\sum_j^{M^{l-1}}W_{ij}^l \cdots \sum_k^{M^{1}}W_{1k}^2 \Delta V_k^1
 \end{equation}
 
-Note that the activation value is strictly fall in [0, 1] by using weight normalization.
+Note that the activation value is strictly fall in [0, 1] by using weight normalization and residual membrane potential $V_i^l(T)$ falls into $[0, V_{th}^l]$ so that it will enable us to estimate the activation function of SNNs ignoring the effect
+of unevenness error which degenerate to the quantization error as \cite{bu2021optimal} mentioned.
 So the weights are not origin ANN weight and are scaled by $V_{th}^{l-1}/V_{th}^l$ and bias are scaled by $V_{th}^l$ and $V_{th}$ is set to 1.
 It has the same form with threshold balancing, the different is that threshold balancing use postsynaptic neuron threshold times firing spike to compute mean firing rate
 Actually, Two method: weight normalization and threshold balancing are mathematically equivalent. We use threshold balancing in rest of paper for convenience.
@@ -246,28 +241,31 @@ Bias is a constant all the time so it does't affect the conversion error and we 
 \end{equation}
 
 When $V_{th}^l$ is larger than maximum of activation value, $V_i^l(T)$ will be less than $V_{th}$ thus the residual membrane potential cannot be output thats why information transmition suffer a loss.
-There error is basically because the discrete of timestep that the mean firing rate is a step function which cannot exactly approximate the source continuous RELU function, which is known as quantization error (flooring error), is can be expressed as
+There error is by nature because the discrete of timestep that the mean firing rate is a step function which cannot exactly approximate the source continuous RELU function, which is known as quantization error (flooring error), is can be expressed as
 \begin{equation}
-  r_i^l(T) = \operatorname{clip}\left(\frac{V_{th}^l}{T}\left\lfloor\frac{W_{ij}^lr_j^{l-1}T}{V_{th}^l}\right\rfloor, 0, V_{th}\right)
+  r_i^l(T) = \frac{V_{th}^l}{T}\left\lfloor\frac{W_{ij}^lr_j^{l-1}T}{V_{th}^l}\right\rfloor
 \end{equation}
 
 \subsection{Maximum Activation Clip Error}
 As mentioned in equation (9), if voltage threshold is set less than maximum activation value, then when PSP exceeds voltage threshold, the emited spike will not transmit efficient information to distinct above PSP.
-Set voltage threshold to maximum activation value can avoid this but suffer a huge latency. This is a trade-off, and in (Sengupta), choose quantile p for different datasets. (Li ) propose a Bayesian Optimization to find this p value.
+Set voltage threshold to maximum activation value can avoid this but suffer a huge latency. This is a trade-off, and in \cite{rueckauer2017conversion}, choose quantile p for different datasets. (Li ) propose a Bayesian Optimization to find this p value.
+The Quantization error and Clip error and be expressed as
 \begin{equation}
-  r_i^l(T) = \sum_j^{M^{l-1}}W_{ij}^lr_j^{l-1} - \frac{a_{max}^l-V_{th}^l}{T}
+  r_i^l(T) = \operatorname{clip}\left(\frac{V_{th}^l}{T}\left\lfloor\frac{W_{ij}^lr_j^{l-1}T}{V_{th}^l}\right\rfloor, 0, V_{th}\right)
 \end{equation}
 
-\subsection{Spike inherently Error}
-This is unavoidable in early timestep, mainly caused by iiregular arrving spike. The phenomenon is that the suddenly coming spike or inactivation neuron wrong spike.
-\begin{figure}[htbp]
-  \centering
-  \includegraphics[width=0.95\textwidth]{test2.png}
-  \caption{Spike inherently Error}
-\end{figure}
 
-Larger timestep or spike calibration can relieve this error while cannot eliminate it. 
+\subsection{Spikes of Inactivated Neurons (SIN) Error}
+Spikes of Inactivated Neurons (SIN) is a group of neuron whoese activation value counterparts in ANN is negative. Theoretically they should not fire spike in total timestep to achieve ReLU filtering the negative value, however they fire spike that activation value $a_i^l$ should zero while corresponding 
+mean fring rate $r_i^l$ is larger than zero. 
+We use $\mathcal{R}=\left\{j \middle\vert\ \sum_{t=0}^T\Theta_{t,j}^l >0, a_j^l(t) < 0\right\}$ to denote SIN, then SIN error can be expressed as
 
+\begin{equation}
+  r_i^l(T) = \mathbf{0} - \frac{\sum_{j \in \mathcal{R}} \sum_{t=0}^TW_{ij}^l\Theta_{t,j}^l }{T}
+\end{equation}
+
+The neurons with SIN usually fire early and then silence during the conversion process.
+We statistics SIN proportion in each layer, it shows that SIN is prevalent and have larger proportion in deeper layer.
 \section{Method}
 \subsection{adaptive threshold still holds}
 Let's take a look at existing methods, no matter weight normalization or threshold balancing, they aim at zipping the gap between ANN and SNN. Though, we should be aware that
@@ -376,9 +374,10 @@ The pseudocodes for adaptive threshold algorithm are shown in Algorithm 1.
 \end{algorithm}
 
 
+\section{Related Work}
+others
 
-
-\section{EXPERIMENTS}
+\section{Experiment}
 
 
 Extensive experiments 
@@ -484,7 +483,7 @@ Table x: detection mAP on VOC and COCO for our converted SNNs, and compared to o
   \caption{Vth vaires result vs inherent inference timestep.}
 \end{figure}
 
-\section{discussion}
+\section{Discussion}
 
 Indeed a trivial solution to
 the fitting problem is the threshold model defined by  and th~0 ms: the ‘‘spike threshold’’ always equals
