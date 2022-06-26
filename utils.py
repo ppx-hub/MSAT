@@ -414,7 +414,7 @@ class HookScale(nn.Module):
 
 
 class Converter(nn.Module):
-    def __init__(self, dataloader, device=None, p=0.9995,  lateral_inhi=True, gamma=1, smode=True, VthHand=False, useDET=False, useDTT=False, model_name=None):
+    def __init__(self, dataloader, device=None, p=0.9995,  lateral_inhi=True, gamma=1, smode=True, VthHand=False, useDET=False, useDTT=False, useSC=None):
         super().__init__()
         self.dataloader = dataloader
         self.device = device
@@ -425,7 +425,7 @@ class Converter(nn.Module):
         self.VthHand = VthHand
         self.useDET = useDET
         self.useDTT = useDTT
-        self.model_name = model_name
+        self.useSC = useSC
     def forward(self, model):
         model.eval()
         # print('register hook scale...')
@@ -441,7 +441,7 @@ class Converter(nn.Module):
         model(data)
         print('finish get max-value!')
         model = self.replace_for_spike(model, smode=self.smode, gamma=self.gamma, lateral_inhi=self.lateral_inhi,
-                                       VthHand=self.VthHand, useDET=self.useDET, useDTT=self.useDTT, model_name=self.model_name)
+                                       VthHand=self.VthHand, useDET=self.useDET, useDTT=self.useDTT, useSC=self.useSC)
         # for name, child in model.named_modules():
         #     if isinstance(child, SNode):
         #         print("+1")
@@ -464,12 +464,12 @@ class Converter(nn.Module):
         return model
 
     @staticmethod
-    def replace_for_spike(model, smode=True, gamma=1, lateral_inhi=True, VthHand=False, useDET=False, useDTT=False, model_name=None):
+    def replace_for_spike(model, smode=True, gamma=1, lateral_inhi=True, VthHand=False, useDET=False, useDTT=False, useSC=None):
         children = list(model.named_children())
         for i, (name, child) in enumerate(children):
             if isinstance(child, nn.Sequential) and len(child) == 2 and isinstance(child[0], nn.ReLU) and isinstance(child[1], HookScale):
                 global layer_index
-                model._modules[name] = SNode(smode=smode, gamma=gamma, maxThreshold=child[1].scale, VthHand=VthHand, useDET=useDET, useDTT=useDTT, model_name=model_name, layer_index=layer_index)
+                model._modules[name] = SNode(smode=smode, gamma=gamma, maxThreshold=child[1].scale, VthHand=VthHand, useDET=useDET, useDTT=useDTT, useSC=useSC, layer_index=layer_index)
                 layer_index += 1
             elif isinstance(child, nn.Sequential) and len(child) == 2 and isinstance(child[0], nn.Conv2d) and isinstance(child[1], HookScale):
                 model._modules[name] = child[0]
@@ -478,7 +478,7 @@ class Converter(nn.Module):
             elif isinstance(child, nn.Sequential) and len(child) == 2 and isinstance(child[0], nn.MaxPool2d) and isinstance(child[1], HookScale):
                 model._modules[name] = SMaxPool(child[0], smode=smode, lateral_inhi=lateral_inhi)
             else:
-                Converter.replace_for_spike(child, smode, gamma, lateral_inhi, VthHand, useDET, useDTT, model_name)
+                Converter.replace_for_spike(child, smode, gamma, lateral_inhi, VthHand, useDET, useDTT, useSC)
         return model
 
 
@@ -520,7 +520,7 @@ class Scale(nn.Module):
 
 
 class SNode(nn.Module):
-    def __init__(self, smode=True, gamma=5,maxThreshold=1.0, VthHand=False, useDET=False, useDTT=False, model_name=None, layer_index=1):
+    def __init__(self, smode=True, gamma=5,maxThreshold=1.0, VthHand=False, useDET=False, useDTT=False, useSC=None, layer_index=1):
         super(SNode, self).__init__()
         self.smode = smode
         self.threshold = maxThreshold  # theta_i^l(t)
@@ -546,7 +546,7 @@ class SNode(nn.Module):
         self.VthHand = VthHand
         self.useDET = useDET
         self.useDTT = useDTT
-        self.model_name = model_name
+        self.useSC = useSC
         self.layer_index = layer_index
         # hyperparameters
         self.alpha = 0
@@ -611,17 +611,18 @@ class SNode(nn.Module):
                     self.threshold *= self.maxThreshold
             self.spike = (self.mem / self.threshold).floor().clamp(min=0, max=self.gamma)
             self.mem = self.mem - self.spike * self.threshold
-            if self.t < 16:
-                # read confidence
-                path = FolderPath.folder_path.split('/')
-                path = os.path.join(path[0], path[1], path[2], 'neuron_confidence.txt')
-                with open(path, 'r') as f:
-                    data = f.readlines()  # 将txt中所有字符串读入data
-                    for ind, line in enumerate(data):
-                        numbers = line.split()  # 将数据分隔
-                        self.confidence.append(list(map(float, numbers))[0])  # 转化为浮点数
-                mask = (torch.rand(x.shape) >= (1.0 - self.confidence[self.layer_index])).float().cuda()
-                self.spike = self.spike * mask  # random drop
+            if self.useSC is True:
+                if self.t < 16:
+                    # read confidence
+                    path = FolderPath.folder_path.split('/')
+                    path = os.path.join(path[0], path[1], path[2], 'neuron_confidence.txt')
+                    with open(path, 'r') as f:
+                        data = f.readlines()  # 将txt中所有字符串读入data
+                        for ind, line in enumerate(data):
+                            numbers = line.split()  # 将数据分隔
+                            self.confidence.append(list(map(float, numbers))[0])  # 转化为浮点数
+                    mask = (torch.rand(x.shape) >= (1.0 - self.confidence[self.layer_index])).float().cuda()
+                    self.spike = self.spike * mask  # random drop
             self.all_spike += self.spike
             out = self.spike * self.threshold
             self.t += 1
@@ -629,14 +630,7 @@ class SNode(nn.Module):
             self.summem += self.mem
             self.Vm = (self.summem / self.t)
             self.sumspike += self.spike
-            # spike_mask = self.spike > 0
-            # self.last_spike =
-            # if self.t == 24:
-            #     self.spike_mask = (self.sumspike > 0) & (self.mem < 0)
-            #     self.mem_16 = self.mem[self.spike_mask]
-            # if self.t == 16:
-            #     # self.sin_ratio.append(float(self.spike_mask.numel()) / float(self.spike.numel()))
-            #     self.sin_ratio.append(self.spike_mask)
+
             if self.record is True:
                 f = open('{}/Vrd_timestep.txt'.format(FolderPath.folder_path), 'a+')
                 f.write("{:.3f} ".format(x[1, 1, 1, 1].item()))

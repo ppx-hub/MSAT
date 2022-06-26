@@ -317,17 +317,17 @@ It is consistent with neuroscience literature spike-threshold adaptation \cite{p
 some other threshold adaptation models such as the threshold increases after each spike and decreases if there is no spike\cite{querlioz2013immunity, diehl2015unsupervised} is relatively simple and not fitted to this problem so we donot adopted. 
 The relationship between threshold and membrane potential and rate of depolarization is described as
 \begin{equation}
-  V_{th}(t+1) = \tau_{mp}V_{th\_mp}(t) + \tau_{rd}V_{th\_rd}(t+1)
+  V_{th,i}^l(t+1) = \tau_{mp}V_{th\_mp,i}^l(t) + \tau_{rd}V_{th\_rd,i}^l(t+1)
 \end{equation}
 
-Where $\tau_{mp}$ and $\tau_{rd}$ is the time constant of the dynamic tracking threshold $V_{th\_mp}(t)$ and dynamic evoked threshold $V_{th\_rd}(t+1)$ separately.
+Where $\tau_{mp}$ and $\tau_{rd}$ is the time constant of the dynamic tracking threshold $V_{th\_mp,i}^l(t)$ and dynamic evoked threshold $V_{th\_rd,i}^l(t+1)$ separately.
 
 \paragraph{dynamic tracking threshold(DTT)} DTT is a flection of spiking threshold vaires with firing history. It shows that spike threshold depends on preceding membrane potential
 and tracking the membrane potential at a short timescale due to inactivation of sodium channel\cite{kuba2010presynaptic, hu2009distinct, platkiewicz2011impact} or the activation of potassium channels\cite{higgs2011kv1, goldberg2008k}.
 in \cite{fontaine2014spike}, the DTT is a similar first-order kinetic equation, we here use steady-state threshold for fitting our SNNs.
 we use $V_{m,i}^l(t)$ to denote the average membrane potential during timestep $t$ in layer $l$ neuron $i$, then DTT is following:
 \begin{equation}
-  V_{th\_mp}^l(t) = \left(\alpha\left(V_i^l(t)-V_m^l(t)\right)+V_{T}^l+k_aln\left(1+e^{\frac{V_i^l(t)-V_m^l(t)}{k_i}}\right)\right)
+  V_{th\_mp,i}^l(t) = \left(\alpha\left(V_i^l(t)-V_m^l(t)\right)+V_{T}^l+k_aln\left(1+e^{\frac{V_i^l(t)-V_m^l(t)}{k_i}}\right)\right)
 \end{equation}
 
 here $\eta, k$is both time constant, $V_{T}^l$ is the parameters to optimize. when PSP is less than average membrane potential $V_m^l(t)$, the slope is $\eta$ on the left side of the knee. The slope on the right side is $\frac{k_a}{k_i} + \alpha$. The curvature C is determined by $\alpha, k_a, k_i, V_{T}^l, V_i^l(t)$.
@@ -340,7 +340,7 @@ Paper\cite{azouz2000dynamic} show spike threshold vaires inversely with precedin
 decrease in the availability of sodium channels. In IF neuron, we use membrane potential before spike variation to express rd thus DET can be expressed as
 
 \begin{equation}
-  V_{th\_rd}^l(t+1) = \tau_{rd}e^{-\frac{\left(\mathbf{V}_i^l(t+1)-\mathbf{V}_i^l(t)\right)}{C}}
+  V_{th\_rd,i}^l(t+1) = \tau_{rd}e^{-\frac{\left(\mathbf{V}_i^l(t+1)-\mathbf{V}_i^l(t)\right)}{C}}
 \end{equation}
 
 Here use bold $\mathbf{V}_i^l(t)$ to denote membrane potential before spike and make a distinction with $V_i^l(t)$ which denote residual membrane potential after spike.
@@ -355,7 +355,7 @@ On the other hand, the threshold variation by DTT ensure voltage threshold will 
 increase endlessly and reduce appropriately for fear of large quantization error.
 
 It should be noted that DTT cannot guarantee positive value because the difference between current residual membrane potential and average membrane potential is may negative.
-Negative threshold is not we want so we let $V_{th}(t+1)$ pass a sigmoid function and map it to $[0,1]$. We use this value multiply maximum activation value as truely threshold.
+Negative threshold is not we want so we let $V_{th,i}^l(t+1)$ pass a sigmoid function and map it to $[0,1]$. We use this value multiply maximum activation value as truely threshold.
 
 \subsection{Spike Confidence}
 As shown in fig , the early spike elicited is not truely all and some part of them are raised by SIN, though threshold adaptive DTT can partly relieve this, SIN will not be distinguished with other

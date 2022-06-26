@@ -32,6 +32,7 @@ parser.add_argument('--smode', default=True, type=bool, help='replace ReLU to IF
 parser.add_argument('--device', default='2', type=str, help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
 parser.add_argument('--cuda', default=True, type=bool, help='use cuda.')
 parser.add_argument('--model_name', default='vgg16', type=str, help='model name. vgg16 or resnet20')
+parser.add_argument('--useSC', action='store_true', default=False, help='use SpikeConfidence')
 parser.add_argument('--train_batch', default=200, type=int, help='batch size for get max')
 parser.add_argument('--batch_size', default=200, type=int, help='batch size for testing')
 parser.add_argument('--seed', default=23, type=int, help='seed')
@@ -45,8 +46,8 @@ def evaluate_snn(test_iter, snn, net, device=None, duration=50):
     t = 1
     folder_path = ""
     while True:
-        folder_path = "./result_conversion_{}/parameters_group{}/snn_p{}_VthHand{}_useDET_{}_useDTT_{}".format(
-            args.model_name, t, args.p, args.VthHand, args.useDET, args.useDTT)
+        folder_path = "./result_conversion_{}/parameters_group{}/snn_VthHand{}_useDET_{}_useDTT_{}_useSC_{}".format(
+            args.model_name, t, args.VthHand, args.useDET, args.useDTT, args.useSC)
         if os.path.exists(folder_path):
             t += 1
         else:
@@ -117,7 +118,7 @@ def evaluate_snn(test_iter, snn, net, device=None, duration=50):
                                 index += 1
                         index = 1
 
-                if (t + 1) == args.sin_t:
+                if (t + 1) == args.sin_t and args.model_name == "vgg16":
                     for layer_ann, layer_snn in zip(net.modules(), snn.modules()):
                         if isinstance(layer_snn, SNode):
                             sin = float(torch.sum((layer_snn.sumspike > 0) & (x <= 0)))
@@ -206,12 +207,12 @@ if __name__ == '__main__':
     # net(data, compute_efficiency=True)
 
     converter = Converter(train_iter, device, args.p, args.lateral_inhi,
-                          args.gamma, args.smode, args.VthHand, args.useDET, args.useDTT, args.model_name)
+                          args.gamma, args.smode, args.VthHand, args.useDET, args.useDTT, args.useSC)
     snn = converter(net)  # use threshold balancing or not
     # snn = fuseConvBN(snn)
 
     converter = Converter(train_iter, device, args.p, args.lateral_inhi,
-                          args.gamma, False, args.VthHand, args.useDET, args.useDTT, args.model_name)
+                          args.gamma, False, args.VthHand, args.useDET, args.useDTT, args.useSC)
     net1 = converter(net1)  # use threshold balancing or not
     evaluate_snn(test_iter, snn, net1, device, duration=args.T)
 

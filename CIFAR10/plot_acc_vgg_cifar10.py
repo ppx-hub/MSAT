@@ -5,9 +5,9 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import os
 import numpy as np
-model_name = "resnet20"
+model_name = "vgg16"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-root = "/home/hexiang/MSAT/CIFAR10/result_conversion_{}/".format(model_name)
+root = "/home/hexiang/MSAT/CIFAR10/result_conversion_{}/parameters_group1/".format(model_name)
 
 if model_name == "vgg16":
     acc_target = 0.9545
@@ -15,27 +15,27 @@ if model_name == "resnet20":
     acc_target = 0.9637
 acc_list_target = [acc_target] * 256
 
-Path_0point5 = root + 'snn_p1_VthHand0.5_useDET_False_useDTT_False/accs.pth'
+Path_0point5 = root + 'snn_VthHand0.5_useDET_False_useDTT_False_useSC_False/accs.pth'
 acc_list = torch.load(Path_0point5)
 acc_list1 = [acc_list[i].item() for i in range(len(acc_list))]
 
-Path_0point7 = root + 'snn_p1_VthHand0.7_useDET_False_useDTT_False/accs.pth'
+Path_0point7 = root + 'snn_VthHand0.7_useDET_False_useDTT_False_useSC_False/accs.pth'
 acc_list = torch.load(Path_0point7)
 acc_list2 = [acc_list[i].item() for i in range(len(acc_list))]
 
-Path_0point9 = root + 'snn_p1_VthHand0.9_useDET_False_useDTT_False/accs.pth'
+Path_0point9 = root + 'snn_VthHand0.9_useDET_False_useDTT_False_useSC_False/accs.pth'
 acc_list = torch.load(Path_0point9)
 acc_list3 = [acc_list[i].item() for i in range(len(acc_list))]
 
-Path_With_DTT = root + 'snn_p1_VthHand-1.0_useDET_False_useDTT_True/accs.pth'
+Path_With_DTT = root + 'snn_VthHand-1.0_useDET_False_useDTT_True_useSC_False/accs.pth'
 acc_list = torch.load(Path_With_DTT)
 acc_list4 = [acc_list[i].item() for i in range(len(acc_list))]
 
-Path_With_DET = root + 'snn_p1_VthHand-1.0_useDET_True_useDTT_False/accs.pth'
+Path_With_DET = root + 'snn_VthHand-1.0_useDET_True_useDTT_False_useSC_False/accs.pth'
 acc_list = torch.load(Path_With_DET)
 acc_list5 = [acc_list[i].item() for i in range(len(acc_list))]
 
-Path_With_DET_DTT = root + 'snn_p1_VthHand-1.0_useDET_True_useDTT_True/accs.pth'
+Path_With_DET_DTT = root + 'snn_VthHand-1.0_useDET_True_useDTT_True_useSC_False/accs.pth'
 acc_list = torch.load(Path_With_DET_DTT)
 acc_list6 = [acc_list[i].item() for i in range(len(acc_list))]
 
