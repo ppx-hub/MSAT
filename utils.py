@@ -12,6 +12,7 @@ import torch.nn.functional as F
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 from copy import deepcopy
+layer_index = 0  # layer index for SNode
 
 class FolderPath:
     folder_path = "init"
@@ -467,8 +468,9 @@ class Converter(nn.Module):
         children = list(model.named_children())
         for i, (name, child) in enumerate(children):
             if isinstance(child, nn.Sequential) and len(child) == 2 and isinstance(child[0], nn.ReLU) and isinstance(child[1], HookScale):
-                # print(child[1].scale)
-                model._modules[name] = SNode(smode=smode, gamma=gamma, maxThreshold=child[1].scale, VthHand=VthHand, useDET=useDET, useDTT=useDTT, model_name=model_name)
+                global layer_index
+                model._modules[name] = SNode(smode=smode, gamma=gamma, maxThreshold=child[1].scale, VthHand=VthHand, useDET=useDET, useDTT=useDTT, model_name=model_name, layer_index=layer_index)
+                layer_index += 1
             elif isinstance(child, nn.Sequential) and len(child) == 2 and isinstance(child[0], nn.Conv2d) and isinstance(child[1], HookScale):
                 model._modules[name] = child[0]
             elif isinstance(child, nn.Sequential) and len(child) == 2 and isinstance(child[0], nn.BatchNorm2d) and isinstance(child[1], HookScale):
@@ -518,7 +520,7 @@ class Scale(nn.Module):
 
 
 class SNode(nn.Module):
-    def __init__(self, smode=True, gamma=5,maxThreshold=1.0, VthHand=False, useDET=False, useDTT=False, model_name=None):
+    def __init__(self, smode=True, gamma=5,maxThreshold=1.0, VthHand=False, useDET=False, useDTT=False, model_name=None, layer_index=1):
         super(SNode, self).__init__()
         self.smode = smode
         self.threshold = maxThreshold  # theta_i^l(t)
@@ -545,7 +547,7 @@ class SNode(nn.Module):
         self.useDET = useDET
         self.useDTT = useDTT
         self.model_name = model_name
-
+        self.layer_index = layer_index
         # hyperparameters
         self.alpha = 0
         self.ka = 0
@@ -560,6 +562,7 @@ class SNode(nn.Module):
         self.sin_spikenum = 0.0
         self.sin_ratio = []
         self.last_spike = 0
+        self.confidence = []
     def forward(self, x):
         global folder_path
         if not self.smode:
@@ -568,15 +571,14 @@ class SNode(nn.Module):
             # if self.t == 0:
             #     self.mem = 1/2 * self.maxThreshold
             self.mem = self.mem + x
-
+            self.spike = torch.zeros_like(x)
             if self.VthHand != -1:
                 if self.t == 0:
-                    self.threshold = torch.full(x.shape, 0.1 * self.VthHand * self.maxThreshold).cuda()
+                    self.threshold = torch.full(x.shape, self.VthHand * self.maxThreshold).cuda()
             else:
                 if self.t == 0:
                     self.threshold = torch.full(x.shape, 1 * self.maxThreshold).cuda()
                     self.V_T = -torch.full(x.shape, self.maxThreshold).cuda()
-                    self.last_spike = torch.zeros_like(x)
                     # init hyperparameters
                     hp = []
                     path = FolderPath.folder_path.split('/')
@@ -586,6 +588,7 @@ class SNode(nn.Module):
                         for ind, line in enumerate(data):
                             numbers = line.split()  # 将数据分隔
                             hp.append(list(map(float, numbers))[0])  # 转化为浮点数
+
                     self.alpha = hp[0]
                     self.ka = hp[1]
                     self.ki = hp[2]
@@ -608,6 +611,17 @@ class SNode(nn.Module):
                     self.threshold *= self.maxThreshold
             self.spike = (self.mem / self.threshold).floor().clamp(min=0, max=self.gamma)
             self.mem = self.mem - self.spike * self.threshold
+            if self.t < 16:
+                # read confidence
+                path = FolderPath.folder_path.split('/')
+                path = os.path.join(path[0], path[1], path[2], 'neuron_confidence.txt')
+                with open(path, 'r') as f:
+                    data = f.readlines()  # 将txt中所有字符串读入data
+                    for ind, line in enumerate(data):
+                        numbers = line.split()  # 将数据分隔
+                        self.confidence.append(list(map(float, numbers))[0])  # 转化为浮点数
+                mask = (torch.rand(x.shape) >= (1.0 - self.confidence[self.layer_index])).float().cuda()
+                self.spike = self.spike * mask  # random drop
             self.all_spike += self.spike
             out = self.spike * self.threshold
             self.t += 1
@@ -615,16 +629,14 @@ class SNode(nn.Module):
             self.summem += self.mem
             self.Vm = (self.summem / self.t)
             self.sumspike += self.spike
-            spike_mask = self.spike > 0
-            self.last_spike =
+            # spike_mask = self.spike > 0
+            # self.last_spike =
             # if self.t == 24:
             #     self.spike_mask = (self.sumspike > 0) & (self.mem < 0)
             #     self.mem_16 = self.mem[self.spike_mask]
-            # if self.t == 255:
-            #     self.spike_mask = (self.mem[self.spike_mask] < 0) & ((self.mem[self.spike_mask] / self.mem_16) > 10)
-            #     self.sin_spikenum = self.spike_mask.numel()
-            #     self.sin_ratio.append(float(self.sin_spikenum) / float(self.spike.numel()))
-
+            # if self.t == 16:
+            #     # self.sin_ratio.append(float(self.spike_mask.numel()) / float(self.spike.numel()))
+            #     self.sin_ratio.append(self.spike_mask)
             if self.record is True:
                 f = open('{}/Vrd_timestep.txt'.format(FolderPath.folder_path), 'a+')
                 f.write("{:.3f} ".format(x[1, 1, 1, 1].item()))

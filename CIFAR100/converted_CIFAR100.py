@@ -32,8 +32,8 @@ parser.add_argument('--smode', default=True, type=bool, help='replace ReLU to IF
 parser.add_argument('--device', default='2', type=str, help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
 parser.add_argument('--cuda', default=True, type=bool, help='use cuda.')
 parser.add_argument('--model_name', default='vgg16', type=str, help='model name. vgg16 or resnet20')
-parser.add_argument('--train_batch', default=512, type=int, help='batch size for get max')
-parser.add_argument('--batch_size', default=128, type=int, help='batch size for testing')
+parser.add_argument('--train_batch', default=200, type=int, help='batch size for get max')
+parser.add_argument('--batch_size', default=200, type=int, help='batch size for testing')
 parser.add_argument('--seed', default=23, type=int, help='seed')
 parser.add_argument('--VthHand', default=1, type=float, help='Vth scale, -1 means variable')
 parser.add_argument('--useDET', action='store_true', default=False, help='use DET')
@@ -41,7 +41,7 @@ parser.add_argument('--useDTT', action='store_true', default=False, help='use DT
 args = parser.parse_args()
 
 
-def evaluate_snn(test_iter, snn, net, device=None, duration=50, plot=False, linetype=None):
+def evaluate_snn(test_iter, snn, net, device=None, duration=50):
     t = 1
     folder_path = ""
     while True:
@@ -53,7 +53,6 @@ def evaluate_snn(test_iter, snn, net, device=None, duration=50, plot=False, line
             os.makedirs(folder_path)
             break
     FolderPath.folder_path = folder_path
-    linetype = '-' if linetype == None else linetype
     accs = []
     snn.eval()
     spike_rate_dict = {
@@ -121,8 +120,8 @@ def evaluate_snn(test_iter, snn, net, device=None, duration=50, plot=False, line
                 if (t + 1) == args.sin_t:
                     for layer_ann, layer_snn in zip(net.modules(), snn.modules()):
                         if isinstance(layer_snn, SNode):
-                            sin = float(torch.sum((layer_snn.sumspike > 8) & (x < 0)))
-                            ann = float(layer_snn.spike.numel())
+                            sin = float(torch.sum((layer_snn.sumspike > 0) & (x <= 0)))
+                            ann = float((x <= 0).numel())
                             layer_snn.sin_ratio.append(sin / ann)
 
                         if not isinstance(layer_ann, nn.Sequential) and not isinstance(layer_ann,
@@ -170,14 +169,6 @@ def evaluate_snn(test_iter, snn, net, device=None, duration=50, plot=False, line
                         f.write("relu{}: average spike rate: {}\n".format(index, torch.stack(
                             spike_rate_dict['relu' + str(index)][x]).mean() / ((x + 1) * 32)))
                         index += 1
-
-        if plot:
-            plt.plot(list(range(len(accs))), accs, linetype)
-            plt.ylabel('Accuracy')
-            plt.xlabel('Time Step')
-            # plt.show()
-            plt.savefig('./result.jpg')
-
 
 if __name__ == '__main__':
     print("Setting Arguments.. : ", args)

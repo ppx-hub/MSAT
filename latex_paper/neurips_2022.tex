@@ -167,17 +167,17 @@ Here we give analytical explanation for the approximation.
 
 In ANN, the neuron i activation value(after relu) in layer l $a_i^l$ can be computed as:
 \begin{equation}
-  a_i^l = max\left(0, \sum_{j=1}^{M^{l-1}}W_{ij}^la_j^{l-1} + b_i^l\right)
+  a_i^l = \operatorname{max}\left(0, \sum_{j=1}^{M^{l-1}}W_{ij}^la_j^{l-1} + b_i^l\right)
 \end{equation}
 here $l \in \{1, \cdots ,L\}$ indicates layer $l$ in a network with L layers; $W_{ij}^l$ indicates weight connection between neuron $i$ in layer $l$ and neuron $j$ in layer $l-1$;
 $b_i^l$ indicates neuron $i$ bias in layer $l$; it is worth noting that $a_i^l$ start from $l=0$ and $a^0=x$.
 
 
-\paragraph{Neuron Model} postsynaptic membrane potential(PSP) at timestep $t+1$, $V_i^l(t+1)$ is a sum of last timestep membrane potential and current input electric current. When PSP exceeds a certain voltage threshold, it emits an output spike and reset the membrane potential.
+\paragraph{Neuron Model} postsynaptic membrane potential(PSP) at timestep $t$, $V_i^l(t)$ is a sum of last timestep $t-1$ membrane potential and current input electric current. When PSP exceeds a certain voltage threshold, it emits an output spike and reset the membrane potential.
 One of the most widely adopted model is Integrate-and-Fire (IF) neuron, and membrane potential at the next time
-step t + 1 would then be updated by soft-reset mechanism, which subtract threshold in PSP rather than reset the membrane potential to $V_{reset}$. The mathematical form is as follows.
+step $t$ would then be updated by soft-reset mechanism, which subtract threshold in PSP rather than reset the membrane potential to $V_{reset}$. The mathematical form is as follows.
 \begin{equation}
-V_i^l(t + 1)=V_{i}^{l}(t)+V_{th}^l\left(\sum_j^{M^{l-1}}W_{ij}^l\Theta_{t,j}^{l-1}+b_i^l\right)-V_{th}^l\Theta_{t,i}^{l}
+V_i^l(t)=V_{i}^{l}(t-1)+V_{th}^l\left(\sum_j^{M^{l-1}}W_{ij}^l\Theta_{t,j}^{l-1}+b_i^l\right)-V_{th}^l\Theta_{t,i}^{l}
 \end{equation}
 
 here $\Theta_{t,i}^{l}$ is a function indicating the neuron $i$ in layer $l$ occurrence of a spike at time $t$
@@ -201,10 +201,6 @@ show as fig 1
 \subsection{Layer-By-Layer Quantization Error}
 
 For equation (2), cumulate the input over the simulation timestep T, we can derive the firing rate relationship layer-to-layer.
-\begin{equation}
-  V_{th}^l\sum_{t=0}^T\Theta_{t,i}^{l}=\sum_{t=0}^TV_{th}^l\left(\sum_j^{M^{l-1}}W_{ij}^l\Theta_{t,j}^{l-1}+b_i^l\right) - V_i^l(T)
-\end{equation}
-
 
 \begin{equation}
   r_i^l(T) = \sum_j^{M^{l-1}}W_{ij}^lr_j^{l-1}+b_i^l - \frac{V_i^l(T)}{TV_{th}^{l}}
@@ -214,9 +210,9 @@ Unfolding for each layer, relationship between mean fring rate and activation va
 \begin{equation}
   \begin{aligned}
     r_i^l(T) &=\sum_j^{M^{l-1}}W_{ij}^lr_j^{l-1}+b_i^l - \frac{V_i^l(T)}{TV_{th}^{l}} \\
-    &=\sum_j^{l-1} \sum_j^{M^{l-1}}W_{ij}^l\left(\sum_k^{M^{l-2}}W_{jk}^{l-1}r_k^{l-2}+b_j^{l-1} - \frac{V_j^{l-1}(T)}{TV_{th}^{l-1}} \right) + b_i^l - \frac{V_i^{l}(T)}{TV_{th}^{l}}\\
+    &= \sum_j^{M^{l-1}}W_{ij}^l\left(\sum_k^{M^{l-2}}W_{jk}^{l-1}r_k^{l-2}+b_j^{l-1} - \frac{V_j^{l-1}(T)}{TV_{th}^{l-1}} \right) + b_i^l - \frac{V_i^{l}(T)}{TV_{th}^{l}}\\
     &= \begin{split}
-        &\sum_j^{l-1} \sum_j^{M^{l-1}}W_{ij}^l\left(\sum_k^{M^{l-2}}W_{jk}^{l-1}\left(\sum\cdots \underbrace{\sum_m^{M^{1}}W_{1m}^1x_m+b_m^1}_{a_m^1} - \frac{V_i^1(T)}{TV_{th}^{1}} + \cdots + b - \frac{V(T)}{TV_{th}} \right) \right.\\ 
+        & \sum_j^{M^{l-1}}W_{ij}^l\left(\sum_k^{M^{l-2}}W_{jk}^{l-1}\left(\sum\cdots \underbrace{\sum_m^{M^{1}}W_{1m}^1x_m+b_m^1}_{a_m^1} - \frac{V_i^1(T)}{TV_{th}^{1}} + \cdots + b - \frac{V(T)}{TV_{th}} \right) \right.\\ 
         &\left. + b_j^{l-1} - \frac{V_j^{l-1}(T)}{TV_{th}^{l-1}} \right) + b_i^l - \frac{V_i^{l}(T)}{TV_{th}^l}
     \end{split}
 \end{aligned}
@@ -238,12 +234,13 @@ Actually, Two method: weight normalization and threshold balancing are mathemati
 Bias is a constant all the time so it does't affect the conversion error and we omit it and in threshold balancing, mean firing rate $r_i^l(t)$ is PSP average value, so equation (5) becomes
 \begin{equation}
   r_i^l(T) = \sum_j^{M^{l-1}}W_{ij}^lr_j^{l-1} - \frac{V_i^l(T)}{T}
+  \label{eq:8}
 \end{equation}
 
 When $V_{th}^l$ is larger than maximum of activation value, $V_i^l(T)$ will be less than $V_{th}$ thus the residual membrane potential cannot be output thats why information transmition suffer a loss.
 There error is by nature because the discrete of timestep that the mean firing rate is a step function which cannot exactly approximate the source continuous RELU function, which is known as quantization error (flooring error), is can be expressed as
 \begin{equation}
-  r_i^l(T) = \frac{V_{th}^l}{T}\left\lfloor\frac{W_{ij}^lr_j^{l-1}T}{V_{th}^l}\right\rfloor
+  r_i^l(T) = \frac{V_{th}^l}{T}\left\lfloor\frac{\sum_j^{M^{l-1}}W_{ij}^lr_j^{l-1}T}{V_{th}^l}\right\rfloor
 \end{equation}
 
 \subsection{Maximum Activation Clip Error}
@@ -251,7 +248,7 @@ As mentioned in equation (9), if voltage threshold is set less than maximum acti
 Set voltage threshold to maximum activation value can avoid this but suffer a huge latency. This is a trade-off, and in \cite{rueckauer2017conversion}, choose quantile p for different datasets. (Li ) propose a Bayesian Optimization to find this p value.
 The Quantization error and Clip error and be expressed as
 \begin{equation}
-  r_i^l(T) = \operatorname{clip}\left(\frac{V_{th}^l}{T}\left\lfloor\frac{W_{ij}^lr_j^{l-1}T}{V_{th}^l}\right\rfloor, 0, V_{th}\right)
+  r_i^l(T) = \operatorname{clip}\left(\frac{V_{th}^l}{T}\left\lfloor\frac{\sum_j^{M^{l-1}}W_{ij}^lr_j^{l-1}T}{V_{th}^l}\right\rfloor, 0, V_{th}^l\right)
 \end{equation}
 
 
@@ -269,22 +266,20 @@ We statistics SIN proportion in each layer, as shown in fig 2. It shows that SIN
 What's more, It is clear that most of SIN appear in early 32 timestep, that's why early timestep accuracy suffer from more degration.
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.95\textwidth]{./fig/sin_ratio.pdf}
+  \includegraphics[width=0.85\textwidth]{./fig/sin_ratio.pdf}
   \caption{SIN ratio in each VGG16 layer. SIN have larger proportion in deeper layer early, account for early timestep accuracy suffer from more degration.}
 \end{figure}
 
 \section{Method}
-\subsection{adaptive threshold still holds}
+\subsection{adaptive threshold optimization error}
 Let's take a look at existing methods, no matter weight normalization or threshold balancing, they aim at zipping the gap between ANN and SNN. Though, we should be aware that
 the real advantage of SNN is its sparse spike which simultaneously low-power and brain-Inspired. Current method, however, set threshold voltage as the same in the same layer and 
 these threshold will remain unchanged despite inference time increasing. It ignores a fact that neurons in different
-regions of brain represent distinct dynamics and process information differently from other regions. 
+regions of brain represent distinct dynamics and process information differently from other regions\cite{mochizuki2016similarity}. 
 The threshold voltage of neurons is also known to have a broad
-range rather than a single value. Some neuronscience literature indicates that threshold value 
+range rather than a single value, known as homoeostasis\cite{marder2006variability}. Some neuronscience literature also indicates that threshold value 
 is variable in the same neuron and threshold 
-variability is a genuine feature of neurons, which reflects 
-adaptation to the membrane potential at a short 
-timescale. Thus the voltage threshold should different from neurons and timestep. Here we demonstrate that voltage threshold is a function of timestep t and the transmits the equivalent information with the constant threshold.
+variability is a genuine feature of neurons\cite{azouz2000dynamic, henze2001action, azouz2003adaptive, pena2002postsynaptic, wilent2005stimulus}. Thus the voltage threshold should different from neurons and timestep. Here we demonstrate that voltage threshold is a function of timestep t and the transmits the equivalent information with the constant threshold.
 
 obmitting the bias, the equation(5) can be rewrited as the following form
 \begin{equation}
@@ -296,23 +291,30 @@ firing rate during timestep T is computed as
   r_i^l(T) = \frac{\sum_{t'=1}^{T}V_{th,i}^l(t')\Theta_{t',i}^{l}}{T}
 \end{equation}
 
-the firing rate relationship in higher layer, it means equation (9) still satisfy so the conversion error form is the same.
-But note that the residual neuron membrane potential $V_i(T)$ can be faster adjusted, so the spike information could be more efficiency and thus shorten the conversion latency. 
+the firing rate relationship in higher layer, it means equation \ref{eq:8} still satisfy so the conversion error form is the same.
+But note that the residual neuron membrane potential $V_i^l(T)$ can be appropriately adjusted, so the spike information could be more efficiency and thus shorten the conversion latency. 
 
-Above equation ensures that all the output neurons are used and adjust the neurons' thresholds to the stimuli for which they become specialized. 
+In threshold adaptation, the optimization target is 
+\begin{equation}
+  \min\limits_{V_{th,i}^l(T)}\left(\operatorname{clipfloor}\left(\sum_j^{M^{l-1}}W_{ij}^lr_j^{l-1}, T, V_{th,i}^l(T)\right) - \frac{\sum_{j \in \mathcal{R}} \sum_{t=0}^TW_{ij}^l\Theta_{t,j}^l }{T} - \operatorname{ReLU}\left(\sum_j^{M^{l-1}}W_{ij}^lr_j^{l-1}\right)\right)
+\end{equation}
+There is no closed-form solution to above problem, \cite{li2021free} use gird search to find final solution, this is still a heuristic method.
+A trivial solution to this is $V_{th,i}^l=\sum_j^{M^{l-1}}W_{ij}^lr_j^{l-1}$, it means voltage threshold eaquals to input value for each neuron. With this solution, ANN can be converted to SNN only one timestep, however, this SNN elicit spike every timestep and lose spike sparsity, so it is not reasonable and makes no sense.
+In next subsection, we will give a more biologically rational method to finda a solution qualitatively.
 
 \subsection{Multi-stage adaptive threshold}
 
-In vivo, the spiking threshold displays large variability. This phenomenon has been widely observed in
+In vivo, the spiking threshold displays large variability. Paper \cite{fontaine2014spike} show that this phenomenon has been widely observed in
 the central nervous system, e.g. visual cortex \cite{azouz2000dynamic, azouz2003adaptive}, auditory
-midbrain \cite{pena2002postsynaptic}, hippocampus \cite{henze2001action}, somatosensory cortex \cite{wilent2005stimulus}. It has
-been proposed that threshold variability measured in vivo reflects
-an adaptation of the spike threshold to the membrane potential. To our best knowledge, threshold varies in conversion is fewly used in \cite{kim2020towards,chen2022adaptive,li2021free} whild they only use two-stage or heuristic method and still cannot represent the homoeostasis well.
+midbrain \cite{pena2002postsynaptic}, hippocampus \cite{henze2001action}, somatosensory cortex \cite{wilent2005stimulus}. 
+However, to our best knowledge, threshold varies in conversion is fewly used in conversion ANN to SNN. Work\cite{kim2020towards,chen2022adaptive,li2021free} while they only use two-stage or heuristic method and still cannot represent the homoeostasis well.
+The other work\cite{ding2022biologically} use this biologically inspired dynamic thresholds mechanism to do robot obstacle avoidance and continuous control tasks. 
 
 Inspired by this, we propose a adaptive threshold, which is multi-stage and vaires with inference time.
 The method can be briefly sumed up as: \textbf{varies with firing history and input properties},
-Specifically, spike threshold is positively correlated with the average $V_i$ preceding spikes and negatively correlated with the rate of depolarization. Also, it is consistent with some
-other threshold adaptation models: the threshold increases after each spike and decreases if there is no spike.
+Specifically, spike threshold is positively correlated with the average $V_i$ preceding spikes and negatively correlated with the rate of depolarization. 
+It is consistent with neuroscience literature spike-threshold adaptation \cite{platkiewicz2010threshold, fontaine2014spike} and \cite{azouz2000dynamic} separately.
+some other threshold adaptation models such as the threshold increases after each spike and decreases if there is no spike\cite{querlioz2013immunity, diehl2015unsupervised} is relatively simple and not fitted to this problem so we donot adopted. 
 The relationship between threshold and membrane potential and rate of depolarization is described as
 \begin{equation}
   V_{th}(t+1) = \tau_{mp}V_{th\_mp}(t) + \tau_{rd}V_{th\_rd}(t+1)
@@ -330,49 +332,71 @@ we use $V_{m,i}^l(t)$ to denote the average membrane potential during timestep $
 
 here $\eta, k$is both time constant, $V_{T}^l$ is the parameters to optimize. when PSP is less than average membrane potential $V_m^l(t)$, the slope is $\eta$ on the left side of the knee. The slope on the right side is $\frac{k_a}{k_i} + \alpha$. The curvature C is determined by $\alpha, k_a, k_i, V_{T}^l, V_i^l(t)$.
 
-idealy, when spike reaches to stabality, the $V_i^l(t) \to V_m^l(t)$ so DTT term will be very small.
-the threshold increas with membrane potential and thus any voltage fluctuations that are slower than threshold adaptation should not have an impact on output spiking, this is indirectly relieve the spike inherently error.
 
-\paragraph{dynamic evoked threshold(DET)} DET is a flection of spiking threshold vaires with input properties. paper
+the threshold increases with residual membrane potential and thus any voltage fluctuations that are slower than threshold adaptation should not have an impact on output spiking, this is indirectly relieve the spike of inactivated neuron error and clip error.
+
+\paragraph{dynamic evoked threshold(DET)} DET is a flection of spiking threshold vaires with input properties. 
+Paper\cite{azouz2000dynamic} show spike threshold vaires inversely with preceding rate of depolarization(rd) $dV_m/dt$ by ploting scatter. And dependence of threshold dynamics on rd is due to 
+decrease in the availability of sodium channels. In IF neuron, we use membrane potential before spike variation to express rd thus DET can be expressed as
 
 \begin{equation}
-  V_{th\_rd}^l(t+1) = \tau_{rd}\left(e^{-\mid\mu\left(V_i^l(t)\right)\mid} + e^{-\frac{\left(V_i^l(t+1)-V_i^l(t)\right)}{C}}\right)
+  V_{th\_rd}^l(t+1) = \tau_{rd}e^{-\frac{\left(\mathbf{V}_i^l(t+1)-\mathbf{V}_i^l(t)\right)}{C}}
 \end{equation}
 
-idealy, when spike reaches to stabality, the $V_i^l(t+1) \to V_i^l(t)$ so DET term will be very small.
+Here use bold $\mathbf{V}_i^l(t)$ to denote membrane potential before spike and make a distinction with $V_i^l(t)$ which denote residual membrane potential after spike.
+$C$ is time constant flecting the insensitive to input membrane potential variation. The threshold decreases with input value exponentially.
 
-\paragraph{Interaction of DET and DTT} Take together, the causal link between preceding spike membrane potential and neg-
-atively correlated with the rate of depolarization, shows that threshold adaptation neurons selective to fast input variations and remarkably insensitive to slow ones. In other words, the slow voltage fluctuations are filtered out by threshold adaptation.
+\paragraph{Interaction of DET and DTT} Take together, the link between preceding spike membrane potential and negatively correlated with the rate of depolarization, shows that threshold adaptation neurons selective to fast input variations and remarkably insensitive to slow ones. 
 
-Thus our adaptive threshold can be formed as:
-\begin{equation}
-  V_{th,i}^l(t+1) = \tau_{mp}\left(\eta\left(V_i^l(t)-V_m^l(t)\right)+ln\left(1+e^{\frac{V_i^l(t)-V_m^l(t)}{\psi}}\right)\right) + \tau_{rd}\left(e^{-\mid\mu\left(V_i^l(t)\right)\mid} + e^{-\frac{\left(V_i^l(t+1)-V_i^l(t)\right)}{C}}\right)
-\end{equation}
+In other words, the slow voltage fluctuations are filtered out by threshold adaptation and will not elicit spike. The slow voltage fluctuations may come from unexpected spike of inactivated neuron so it relieve the SIN error partly and reduce the total spike
+number meanwhile promoting the energy efficiency.
 
-Above equation ensures that all the output neurons are used and adjust the neurons’ thresholds to the
+On the other hand, the threshold variation by DTT ensure voltage threshold will not raise big gap with maximum activation value thus narrowed clip error; and the threshold variation by DET makes threshold not
+increase endlessly and reduce appropriately for fear of large quantization error.
+
+It should be noted that DTT cannot guarantee positive value because the difference between current residual membrane potential and average membrane potential is may negative.
+Negative threshold is not we want so we let $V_{th}(t+1)$ pass a sigmoid function and map it to $[0,1]$. We use this value multiply maximum activation value as truely threshold.
+
+\subsection{Spike Confidence}
+As shown in fig , the early spike elicited is not truely all and some part of them are raised by SIN, though threshold adaptive DTT can partly relieve this, SIN will not be distinguished with other
+normal neuron untill they keep silence in longer timestep. It hints us we should not totally believe the early spike.
+As many image cognition do, we also import a confidence to show how confident the elicited spike is that they are outcome of normal neuron so not SIN.
+So we give different spike confidence to different layer and in early timestep every spike which should elicit will not fire directly but use this spike confidence to determine spike or not.
+This is somewhat like dropout\cite{srivastava2014dropout} to normalize and relieve overfitting. Formula expression as follows
+\begin{gather}
+  c_j^l \thicksim Bernoulli(p) \notag \\
+  \tilde{\Theta}_{t,i}^l = c_j^l * \Theta_{t,i}^l \notag \\
+  V_i^l(t)=V_{i}^{l}(t-1)+\sum_j^{M^{l-1}}V_{th,j}^l(t)W_{ij}^l\tilde{\Theta}_{t,j}^{l-1} -V_{th,i}^l(t)\tilde{\Theta}_{t,i}^{l}
+\end{gather}
+
+Above equation ensures that all the output neurons are used and adjust the neurons, thresholds to the
 stimuli for which they become specialized.
 The pseudocodes for adaptive threshold algorithm are shown in Algorithm 1.
 \begin{algorithm}[h] 
-	\caption{Conversion from ANN to SNN: Multi-stage adaptive threshold(\# todo)} 
+	\caption{Conversion from ANN to SNN: Multi-stage adaptive threshold} 
 	\begin{algorithmic}[1] 
 		\Require 
-    Pretrained ANN, training set,  SNN's inference timestep T
+    Pretrained ANN, training set,  SNN's inference timestep T, spike confidence list C
 		\Ensure 
 		The converted SNN firing rate approximate ANN activation value with shorter latency
 
     \For {s = 1 to \# of samples}
       \State $a_l \gets$ layer-wise activation value
       \For {$l$ = 1 to L}
-        \State $V_{th}^l \gets \frac{1}{2}max[V_{th}^l, max(a_l)]$
+        \State $V_{th}^l \gets max[V_{th}^l, max(a_l)]$
         \State $SNN.layer[l].V_{th} \gets V_{th}^l$
       \EndFor
     \EndFor
 
     \For {t = 1 to timestep T}
       \For {$l$ = 1 to L}
+        \State spike confidence $c^l \gets Bernoulli(C[l])$
         \For{$j$ = 1 to neuron number of layer $l$}
-          \State $dV_{th} \gets \gamma(SNN.layer[l].R[j] - SNN.layer[l].V_{mem}[j])$
-          \State $SNN.layer[l].V_{th}[j] \gets SNN.layer[l].V_{th}[j] + dV_{th}$
+          \State compute DTT and DET as formula (17)(19) to get adaptation value
+          \State $SNN.layer[l].V_{th}[j] \gets sigmoid(DTT+DET) * V_{th}^l$
+          \If{fire spike and t < early timestep}
+          \State spike = $c^l$ * spike
+          \EndIf
         \EndFor
       \EndFor
     \EndFor
@@ -380,13 +404,6 @@ The pseudocodes for adaptive threshold algorithm are shown in Algorithm 1.
 	\end{algorithmic} 
 \end{algorithm}
 
-\subsection{Error After MSAT}
-
-The optimization target is 
-\begin{equation}
-  \operatorname{min}\sum\limits_{V_{th,i}^l(T)}\left(\operatorname{clipfloor}\left(W_{ij}^lr_j^{l-1}, T, V_{th,i}^l(T)\right) - \frac{\sum_{j \in \mathcal{R}} \sum_{t=0}^TW_{ij}^l\Theta_{t,j}^l }{T} - \operatorname{ReLU}\left(W_{ij}^lr_j^{l-1}\right)\right)
-\end{equation}
-A trivial solution to this is $V_{th,i}^l=W_{ij}^lr_j^l$, it means voltage threshold eaquals to input value for each neuron. With this solution, ANN can be converted to SNN only one timestep, however, this SNN elicit spike every timestep and lose spike sparsity, so it is not reasonable and makes no sense.
 
 \section{Related Work}
 others

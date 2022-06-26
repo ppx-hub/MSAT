@@ -26,13 +26,14 @@ parser.add_argument('--T', default=256, type=int, help='simulation time')
 parser.add_argument('--p', default=1, type=float, help='percentile for data normalization. 0-1')
 parser.add_argument('--gamma', default=1, type=int, help='burst spike and max spikes IF can emit')
 parser.add_argument('--lateral_inhi', default=True, type=bool, help='LIPooling')
+parser.add_argument('--sin_t', default=256, type=int, help='sin timestep')
 parser.add_argument('--data_norm', default=True, type=bool, help=' whether use data norm or not')
 parser.add_argument('--smode', default=True, type=bool, help='replace ReLU to IF')
 parser.add_argument('--device', default='2', type=str, help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
 parser.add_argument('--cuda', default=True, type=bool, help='use cuda.')
 parser.add_argument('--model_name', default='vgg16', type=str, help='model name. vgg16 or resnet20')
-parser.add_argument('--train_batch', default=512, type=int, help='batch size for get max')
-parser.add_argument('--batch_size', default=128, type=int, help='batch size for testing')
+parser.add_argument('--train_batch', default=200, type=int, help='batch size for get max')
+parser.add_argument('--batch_size', default=200, type=int, help='batch size for testing')
 parser.add_argument('--seed', default=23, type=int, help='seed')
 parser.add_argument('--VthHand', default=1, type=float, help='Vth scale, -1 means variable')
 parser.add_argument('--useDET', action='store_true', default=False, help='use DET')
@@ -40,13 +41,18 @@ parser.add_argument('--useDTT', action='store_true', default=False, help='use DT
 args = parser.parse_args()
 
 
-def evaluate_snn(test_iter, snn, net, device=None, duration=50, plot=False, linetype=None):
-    folder_path = "./result_conversion_{}/snn_p{}_VthHand{}_useDET_{}_useDTT_{}".format(
-            args.model_name, args.p, args.VthHand, args.useDET, args.useDTT)
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
+def evaluate_snn(test_iter, snn, net, device=None, duration=50):
+    t = 1
+    folder_path = ""
+    while True:
+        folder_path = "./result_conversion_{}/parameters_group{}/snn_p{}_VthHand{}_useDET_{}_useDTT_{}".format(
+            args.model_name, t, args.p, args.VthHand, args.useDET, args.useDTT)
+        if os.path.exists(folder_path):
+            t += 1
+        else:
+            os.makedirs(folder_path)
+            break
     FolderPath.folder_path = folder_path
-    linetype = '-' if linetype == None else linetype
     accs = []
     snn.eval()
     spike_rate_dict = {
@@ -67,10 +73,14 @@ def evaluate_snn(test_iter, snn, net, device=None, duration=50, plot=False, line
     if os.path.exists(r'{}/Vth_timestep.txt'.format(folder_path)): os.remove(r'{}/Vth_timestep.txt'.format(folder_path))
     if os.path.exists(r'{}/Vmem_timestep.txt'.format(folder_path)): os.remove(r'{}/Vmem_timestep.txt'.format(folder_path))
     if os.path.exists(r'{}/Vrd_timestep.txt'.format(folder_path)): os.remove(r'{}/Vrd_timestep.txt'.format(folder_path))
+    if os.path.exists(r'{}/Spike_timestep.txt'.format(folder_path)): os.remove(r'{}/Spike_timestep.txt'.format(folder_path))
+    if os.path.exists(r'{}/Maxthreshold_timestep.txt'.format(folder_path)): os.remove(r'{}/Maxthreshold_timestep.txt'.format(folder_path))
+    sin_ratio = []
     for ind, (test_x, test_y) in enumerate(tqdm(test_iter)):
         test_x = test_x.to(device)
         test_y = test_y.to(device)
         n = test_y.shape[0]
+        x = deepcopy(test_x)
         out = 0
         with torch.no_grad():
             clean_mem_spike(snn)
@@ -79,28 +89,47 @@ def evaluate_snn(test_iter, snn, net, device=None, duration=50, plot=False, line
             for t in range(duration):
                 out += snn(test_x)
                 f = open('{}/Vth_timestep.txt'.format(folder_path), 'a+')
-                f.write("\n")  # 每个时间步换一行
+                f.write("\n")
                 f.close()
                 f = open('{}/Vmem_timestep.txt'.format(folder_path), 'a+')
-                f.write("\n")  # 每个时间步换一行
+                f.write("\n")
                 f.close()
                 f = open('{}/Vrd_timestep.txt'.format(folder_path), 'a+')
-                f.write("\n")  # 每个时间步换一行
+                f.write("\n")
+                f.close()
+                f = open('{}/Spike_timestep.txt'.format(folder_path), 'a+')
+                f.write("\n")
+                f.close()
+                f = open('{}/Maxthreshold_timestep.txt'.format(folder_path), 'a+')
+                f.write("\n")
                 f.close()
                 result = torch.max(out, 1).indices
                 result = result.to(device)
                 acc_sum = (result == test_y).float().sum().item()
                 acc.append(acc_sum / n)
 
-                # if (t + 1) % 32 == 0:
-                #     for name, layer in snn.named_modules():
-                #         if isinstance(layer, SNode):
-                #             spike_rate_dict['relu' + str(index)][(t + 1) // 32 - 1].append(
-                #                 (layer.all_spike.sum() / layer.all_spike.view(-1).shape[0]).cpu())
-                #             index += 1
-                #     index = 1
-            # if ind >= 1:
-            #     break
+                if args.model_name == "vgg16":
+                    if (t + 1) % 32 == 0:
+                        for name, layer in snn.named_modules():
+                            if isinstance(layer, SNode):
+                                spike_rate_dict['relu' + str(index)][(t + 1) // 32 - 1].append(
+                                    (layer.all_spike.sum() / layer.all_spike.view(-1).shape[0]).cpu())
+                                index += 1
+                        index = 1
+
+                if (t + 1) == args.sin_t:
+                    for layer_ann, layer_snn in zip(net.modules(), snn.modules()):
+                        if isinstance(layer_snn, SNode):
+                            sin = float(torch.sum((layer_snn.sumspike > 0) & (x <= 0)))
+                            ann = float((x <= 0).numel())
+                            layer_snn.sin_ratio.append(sin / ann)
+
+                        if not isinstance(layer_ann, nn.Sequential) and not isinstance(layer_ann,
+                                                                                       VGG16) and not isinstance(
+                                layer_ann, nn.ReLU) and not isinstance(layer_ann, nn.MaxPool2d):
+                            if isinstance(layer_ann, nn.Linear):
+                                x = x.view(x.shape[0], -1)
+                            x = layer_ann(x)
         accs.append(np.array(acc))
 
     if True:
@@ -117,31 +146,29 @@ def evaluate_snn(test_iter, snn, net, device=None, duration=50, plot=False, line
         accs = torch.from_numpy(accs)
         torch.save(accs, "{}/accs.pth".format(folder_path))
 
-        # f = open('{}/result_firingRate.txt'.format(folder_path), 'w')
-        # for x in range(8):
-        #     index = 1
-        #     f.write("-----------------timestep:{}-----------------\n".format((x + 1) * 32))
-        #     for name, layer in net.named_modules():
-        #         if isinstance(layer, SNode):
-        #             f.write("relu{}: average spike number: {}\n".format(index, torch.stack(
-        #                 spike_rate_dict['relu' + str(index)][x]).mean()))
-        #             index += 1
-        # for x in range(8):
-        #     index = 1
-        #     f.write("-----------------timestep:{}-----------------\n".format((x + 1) * 32))
-        #     for name, layer in net.named_modules():
-        #         if isinstance(layer, SNode):
-        #             f.write("relu{}: average spike rate: {}\n".format(index, torch.stack(
-        #                 spike_rate_dict['relu' + str(index)][x]).mean() / ((x + 1) * 32)))
-        #             index += 1
-
-        if plot:
-            plt.plot(list(range(len(accs))), accs, linetype)
-            plt.ylabel('Accuracy')
-            plt.xlabel('Time Step')
-            # plt.show()
-            plt.savefig('./result.jpg')
-
+        if args.model_name == "vgg16":
+            f = open('{}/result_SINRate.txt'.format(folder_path), 'w')
+            for layer_ann, layer_snn in zip(net.modules(), snn.modules()):
+                if isinstance(layer_snn, SNode):
+                    f.write("{:.3f}\n".format(np.mean(layer_snn.sin_ratio)))
+            f.close()
+            f = open('{}/result_firingRate.txt'.format(folder_path), 'w')
+            for x in range(8):
+                index = 1
+                f.write("-----------------timestep:{}-----------------\n".format((x + 1) * 32))
+                for name, layer in snn.named_modules():
+                    if isinstance(layer, SNode):
+                        f.write("relu{}: average spike number: {}\n".format(index, torch.stack(
+                            spike_rate_dict['relu' + str(index)][x]).mean()))
+                        index += 1
+            for x in range(8):
+                index = 1
+                f.write("-----------------timestep:{}-----------------\n".format((x + 1) * 32))
+                for name, layer in snn.named_modules():
+                    if isinstance(layer, SNode):
+                        f.write("relu{}: average spike rate: {}\n".format(index, torch.stack(
+                            spike_rate_dict['relu' + str(index)][x]).mean() / ((x + 1) * 32)))
+                        index += 1
 
 if __name__ == '__main__':
     print("Setting Arguments.. : ", args)
@@ -179,14 +206,12 @@ if __name__ == '__main__':
     # net(data, compute_efficiency=True)
 
     converter = Converter(train_iter, device, args.p, args.lateral_inhi,
-                          args.gamma, args.smode, args.VthHand, args.useDET, args.useDTT)
+                          args.gamma, args.smode, args.VthHand, args.useDET, args.useDTT, args.model_name)
     snn = converter(net)  # use threshold balancing or not
     # snn = fuseConvBN(snn)
 
-
     converter = Converter(train_iter, device, args.p, args.lateral_inhi,
-                          args.gamma, False, args.VthHand, args.useDET, args.useDET)
+                          args.gamma, False, args.VthHand, args.useDET, args.useDTT, args.model_name)
     net1 = converter(net1)  # use threshold balancing or not
-
     evaluate_snn(test_iter, snn, net1, device, duration=args.T)
 
