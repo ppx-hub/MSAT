@@ -202,9 +202,9 @@ if __name__ == '__main__':
     acc = evaluate_accuracy(test_iter, net, device)
     print("acc on ann is : {:.4f}".format(acc))
 
-    # data = iter(test_iter).next()[0].to(device)
-    # data = data[0, :, :, :].unsqueeze(0)
-    # net(data, compute_efficiency=True)
+    data = iter(test_iter).next()[0].to(device)
+    data = data[0, :, :, :].unsqueeze(0)
+    net(data, compute_efficiency=True)
 
     converter = Converter(train_iter, device, args.p, args.lateral_inhi,
                           args.gamma, args.smode, args.VthHand, args.useDET, args.useDTT, args.useSC)

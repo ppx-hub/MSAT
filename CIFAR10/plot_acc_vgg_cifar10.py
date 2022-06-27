@@ -5,9 +5,9 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import os
 import numpy as np
-model_name = "vgg16"
+model_name = "resnet20"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-root = "/home/hexiang/MSAT/CIFAR10/result_conversion_{}/parameters_group1/".format(model_name)
+root = "/home/hexiang/MSAT/CIFAR10/result_conversion_{}/parameters_group3/".format(model_name)
 
 if model_name == "vgg16":
     acc_target = 0.9545

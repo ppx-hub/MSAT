@@ -1,0 +1,22 @@
+Setting Arguments.. : Namespace(T=256, VthHand=0.9, batch_size=200, cuda=True, data_norm=True, device='1', gamma=1, lateral_inhi=True, model_name='resnet20', p=1, seed=23, sin_t=256, smode=True, train_batch=200, useDET=False, useDTT=False, useSC=False)
+timestep 001:0.1
+timestep 004:0.1
+timestep 008:0.1
+timestep 016:0.10190000000000002
+timestep 032:0.8190999999999997
+timestep 048:0.9224
+timestep 064:0.9436000000000001
+timestep 080:0.9501999999999999
+timestep 096:0.9544999999999999
+timestep 112:0.9573000000000002
+timestep 128:0.9598000000000002
+timestep 144:0.9603000000000002
+timestep 160:0.9611000000000002
+timestep 176:0.9615
+timestep 192:0.9613000000000003
+timestep 208:0.9618000000000001
+timestep 224:0.9624000000000001
+timestep 240:0.9624999999999999
+timestep 256:0.9625999999999998
+max accs: 0.9625999999999999, timestep:(array([238, 254]),)
+use for latex tabular: & 96.26 & 81.91 & 94.36 & 95.98 & 96.26

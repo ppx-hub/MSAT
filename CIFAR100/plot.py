@@ -125,7 +125,11 @@ import sys
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 from matplotlib.pyplot import MultipleLocator
+import brewer2mpl
+# 参照下方配色方案，第三参数为颜色数量，这个例子的范围是3-12，每种配色方案参数范围不相同
+bmap = brewer2mpl.get_map('set3', 'qualitative', 12)
 
+colors = bmap.mpl_colors
 
 
 # # 一元一次函数图像
@@ -148,6 +152,15 @@ with open(path, 'r') as f:
         numbers = line.split()  # 将数据分隔
         have_256.append(list(map(float, numbers))[0])
 
+no_sc = []
+root = "/home/hexiang/MSAT/CIFAR100/result_conversion_vgg16/parameters_group1/snn_VthHand-1.0_useDET_True_useDTT_True_useSC_False"
+path = os.path.join(root, "result_SINRate.txt")
+with open(path, 'r') as f:
+    data = f.readlines()  # 将txt中所有字符串读入data
+    for ind, line in enumerate(data):
+        numbers = line.split()  # 将数据分隔
+        no_sc.append(list(map(float, numbers))[0])
+
 have_sc = []
 root = "/home/hexiang/MSAT/CIFAR100/result_conversion_vgg16/parameters_group1/snn_VthHand-1.0_useDET_True_useDTT_True_useSC_True"
 path = os.path.join(root, "result_SINRate.txt")
@@ -160,17 +173,40 @@ with open(path, 'r') as f:
 index = np.arange(1, 14)
 
 fig, ax = plt.subplots()
-bar_width = 0.3
+bar_width = 0.4
 
-ax.bar(index, have_256, bar_width, color='r', label='w/o spike confidence')
-ax.bar(index + bar_width, have_sc, bar_width, color='g', label='w spike confidence')
+
+
+firing_rate = [
+    0.045486677438020706, 0.07766489684581757, 0.05115384981036186,
+    0.04537772759795189, 0.04539765790104866, 0.03777753934264183,
+    0.016239548102021217, 0.026328597217798233, 0.010158049874007702,
+    0.017707584425807, 0.05968906730413437, 0.06104709580540657,
+    0.053790975362062454
+]  # len is 13
+
+ax.bar(index, firing_rate, bar_width, color=colors[9])
+ax.xaxis.set_major_locator(MultipleLocator(1))
+ax.set_xlabel("layer index")
+ax.set_ylabel("firing rate")
+ax.set_title('firing rate in each VGG16 layer with dt and sc')
+
+plt.show()
+plt.savefig("./firing_rate.pdf")
+sys.exit()
+
+
+ax.bar(index-0.23, have_256, bar_width, color=colors[9], label='w/o dynamic threshold and spike confidence')
+ax.bar(index-0.23 + bar_width, no_sc, bar_width, color=colors[5], label='w dynamic threshold')
+ax.bar(index-0.23 + 2*bar_width, have_sc, bar_width, color=colors[0], label='w dynamic threshold and spike confidence')
+
 ax.legend()
 
 ax.xaxis.set_major_locator(MultipleLocator(1))
 ax.set_xlabel("layer index")
-ax.set_ylabel("burst ratio")
-ax.set_title('burst ratio in each VGG16 layer')
+ax.set_ylabel("sin ratio")
+ax.set_title('sin ratio in each VGG16 layer with dt and sc')
 
 plt.show()
-plt.savefig("./burst_ratio.pdf")
+plt.savefig("./sin_ratio.pdf")
 sys.exit()

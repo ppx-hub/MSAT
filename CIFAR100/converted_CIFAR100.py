@@ -35,7 +35,7 @@ parser.add_argument('--model_name', default='vgg16', type=str, help='model name.
 parser.add_argument('--useSC', action='store_true', default=False, help='use SpikeConfidence')
 parser.add_argument('--train_batch', default=200, type=int, help='batch size for get max')
 parser.add_argument('--batch_size', default=200, type=int, help='batch size for testing')
-parser.add_argument('--seed', default=23, type=int, help='seed')
+parser.add_argument('--seed', default=47, type=int, help='seed')
 parser.add_argument('--VthHand', default=1, type=float, help='Vth scale, -1 means variable')
 parser.add_argument('--useDET', action='store_true', default=False, help='use DET')
 parser.add_argument('--useDTT', action='store_true', default=False, help='use DTT')

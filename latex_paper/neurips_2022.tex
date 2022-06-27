@@ -101,11 +101,11 @@
 \begin{abstract}
   Spiking Neural Networks(SNNs) can do inference with low-power consumption natively because of its spike sparsity.
   Compared with the other two traning method: STDP and BP, Conversion from Artifical Neural Networks(ANNs), is a more easlier way to acheive deep SNNs and commly have the approximate performance compared with ANN.
-  However, Conversion SNNs suffer from a accuracy degration and more latency at inference time. Lots of studys have tryed to make a trade-off between improving accuracy and reduce the latency using varied method including adjust ANN topology
-  when mapping ANN to SNN, using a more efficient fring mechanism et.al Here we analyze conversion loss layer-to-layer and point it out that membrane potential matters in both SNN accuracy and inference latency. 
-  subsequently, we give a new perspective that most of current conversion method is optimization membrane potential to achieve higher accuracy and short latency.
-  Meanwhile, Different from current converson schemes which use the same and invariant threshold with inference time in a layer, we propose a multi-stage adaptive threshold for deep spiking neural Networks.
-  We examine the performance on CIFAR-100 and ImageNet for classfication. Futuremore, we show the propose method also behave well in objection detection on VOC and COCO. All above provide support  on biological interpretability.
+  However, Conversion SNNs suffer from a accuracy degration and more latency at inference time. Lots of studys have tryed to make a trade-off between improving accuracy and reduce the latency.
+  Here we analyze conversion loss layer-to-layer and point it out that membrane potential matters in both SNN accuracy and inference latency. 
+  Meanwhile, Different from current converson schemes which use the same and invariant threshold with inference time in a layer, we propose a multi-stage adaptive threshold inspired by biological model for deep spiking neural Networks and propose spike Confidence to further achieve higher accuracy and short latency.
+  We examine the performance on CIFAR-10 and CIFAR-100 for classfication. 
+  Extensive experiments provide support on biological interpretability and present our method have a comparative performance and energy consumption with other state-of-the-art method.
 \end{abstract}
 
 
@@ -137,8 +137,7 @@ activations of their counterparts (RELU) in ANNs  with sufficient time
 steps. This finding has become the fundamental principle
 underlying the conversion scheme. Converted SNNs often suffer from a accu-
 racy degration and more latency at inference time. Lots of studys have tryed to
-make a trade-off between improving accuracy and reduce the latency using var-
-ied method including adjust ANN topology when mapping ANN to SNN, using
+make a trade-off between improving accuracy and reduce the latency using method including adjust ANN topology when mapping ANN to SNN, using
 a more efficient fring mechanism et.al. Here we forms conversion loss formula and shows that residual membrane potential in each IF neuron 
 increase the latency which mean firing rates approximate to activation value. We also find that most of current converson schemes,
 they use threshold invariant with inference time and are same and in a layer. This mechanism is inconsistent with a phenomenon which has been widely observed in 
@@ -146,14 +145,15 @@ the central nervous system, e.g. visual cortex , auditory
 midbrain, hippocampus, somatosensory cortex.  It has 
 been proposed that threshold variability reflects 
 an adaptation of the spike threshold to the membrane potential. Inspired by this, we propose a multi-stage adaptive threshold for deep spiking neural Networks. 
-For each neuron, its threshold vaires with its own membrane potential.We both do experimental on object recognition and detection in non-trival datasets to prove
+For each neuron, its threshold vaires with its own membrane potential. We both do experimental on classfication tasks in non-trival datasets to prove
 proposed method is as well as efficiency with the current mainstream schemes when doing visual tasks.
 
 Our major contribution can be summarized as:
 \begin{itemize}
-  \item sufficient experimental on object recognition and detection in non-trival datasets, shows that our proposed method is both efficiency and biological interpretability
+  \item sufficient experimental on classfication tasks in non-trival datasets CIFAR10 and CIFAR100, shows that our proposed method is both efficiency and biological interpretability
   \item a formula on layer-by-layer conversion error, a new perspective diving existing method into three part 
   \item a multi-stage adaptive threshold mechanism, which is widely existing in the center nervous system and thus more biological plausible. We use it for deep spiking neural Networks.
+  \item a spike confidence in easlier timestep to determine probabilistic spike rather than all through spike
 \end{itemize}
 
 
@@ -189,7 +189,7 @@ Here $z_i^l(t)$ is neuron $i$ inputs in layer $l$ and time $t$
   z_{i}^{l}(t) = V_{th}^l\left(\sum_j^{M^{l-1}}W_{ij}^l\Theta_{t,i}^{l}+b_i^l\right)
 \end{equation}
 
-\section{Diving Conversion Error}
+\section{Divding Conversion Error}
 Error comes from two part: one is converting ANN to SNN directly, result quantization error and clip error; the other is neuron transient dynamics and iiregular elicited spike, Spikes of Inactivated Neurons
 (SIN) error.
 show as fig 1
@@ -266,7 +266,7 @@ We statistics SIN proportion in each layer, as shown in fig 2. It shows that SIN
 What's more, It is clear that most of SIN appear in early 32 timestep, that's why early timestep accuracy suffer from more degration.
 \begin{figure}[htbp]
   \centering
-  \includegraphics[width=0.85\textwidth]{./fig/sin_ratio.pdf}
+  \includegraphics[width=0.8\textwidth]{./fig/sin_ratio.pdf}
   \caption{SIN ratio in each VGG16 layer. SIN have larger proportion in deeper layer early, account for early timestep accuracy suffer from more degration.}
 \end{figure}
 
@@ -406,51 +406,24 @@ The pseudocodes for adaptive threshold algorithm are shown in Algorithm 1.
 
 
 \section{Related Work}
-others
+The conversion use the pre-trained ANN and to map them to an equivalent SNN. the studies begin with \cite{perez2013mapping}, the main idea that mean firing rate in IF neuron can approximate RELU activation value is proposed in \cite{diehl2015fast},
+and the mathematical formula derivation is expressed in \cite{rueckauer2017conversion}. Since \cite{sengupta2019going}, the converted SNN begin going deeper and do classfication task in larger datasets. \cite{han2020rmp} propose a more efficiency reset method named softreset which use reset by subtraction mechanism to get a better performance.
+\cite{rathi2020diet} first use threshold optimization in deep SNN. \cite{deng2021optimal} divide conversion into floor and clip error from a new quantization perspective, \cite{li2021free} is one step closer to optimizing the conversion error.
+\cite{yu2021constructing} construct the deep SNN with double-threshold, \cite{liu2022spikeconverter} propose temporal separation to further zip gap between ANN and SNN. \cite{li2022efficient} use burst mechanism and propose LIPooling to solve the conversion error caused by the MaxPooling layer.
+\cite{wang2022towards} present a dual-phase converting algorithm to relieve clip and floor error. 
+
 
 \section{Experiment}
+We validate effectiveness of our proposed method in this section. We test the classification task on the CIFAR10 \cite{krizhevsky2009learning}, CIFAR100 \cite{krizhevsky2009learning} datasets.
+In input encoding, we choose the first network layer as the encoding layer and real-value input for higher performance.
 
+As mentioned in Related work, some work train a modified ANN to get short latency when converting ANN-to-SNN. We donot want to do too much restriction on origin ANN, 
+and we save the topology and use the original weights in target ANN for universal conversion. In this way, we compare the state-of-the-art approaches include P-Norm\cite{rueckauer2017conversion}, Spike-Norm\cite{sengupta2019going},
+Channel-Norm\cite{kim2020spiking}, TSC\cite{han2020deep}, RMP-SNN\cite{han2020rmp}, Opt.\cite{deng2021optimal}, Calibration\cite{li2021free}, Burst \cite{li2022efficient}. 
+VGG16 and ResNet20 are used for target ANN as in previous work for comparison. 
 
-Extensive experiments 
-
-\begin{table}[!t]
-  \centering
-  \caption{Experimental results on CIFAR100}
-  \begin{threeparttable}
-    \resizebox{\linewidth}{!}{
-      \begin{tabular}{c|c|c|ccccc}
-        \toprule
-        Method& Use DT &ANN &SNN Best & T=32 & T=64 & T=128 & T=256\\
-        \midrule
-        \multicolumn{8}{c}{\textbf{VGG16, CIFAR100}}\\
-        \midrule
-        p-Norm \cite{rueckauer2017conversion} &\XSolid & 78.49& 58.44 & 44.88 & 51.89 & 56.02 & 58.44 \\
-        Channel-Norm\cite{kim2020spiking} &\XSolid & 78.49 & 74.74 & 54.03 & 67.34 & 72.50 & 74.73 \\
-        Spike-Norm\cite{sengupta2019going} &\XSolid& 71.22 & 70.77& - & - & - & -\\
-        TSC\cite{han2020deep} &\XSolid &71.22 & 70.97 &- &- & 69.86 & 70.65 \\
-        RMP-SNN\cite{han2020rmp} &\XSolid&71.22 & 70.93 &- &- &63.76 & 68.34\\
-        Opt.\cite{deng2021optimal} &\XSolid& 77.89& 77.71 & 7.64 & 21.84 & 55.04 & 73.54\\
-        Calibration\cite{li2021free} &\XSolid& 77.89 & 77.87 & 73.55 & 76.64 & 77.40 & 77.68\\
-        Burst \cite{li2022efficient} &\XSolid& 78.49 & 78.71 & 74.98 & 78.26 & 78.66 & 78.65 \\
-        \textbf{This Work} &\Checkmark&78.49 & \textbf{78.64} & \textbf{63.26} & \textbf{75.46} & \textbf{78.13} & \textbf{78.58} \\
-        \midrule
-        \multicolumn{8}{c}{\textbf{ResNet20, CIFAR100}}\\
-        \midrule
-        p-Norm \cite{rueckauer2017conversion} &\XSolid& 80.69& 67.35 & 38.13 & 58.09 & 64.96 & 67.33  \\
-        Channel-Norm\cite{kim2020spiking} &\XSolid& 80.69 & 71.26 & 52.59 & 66.05 & 70.08 & 71.26\\
-        Spike-Norm\cite{sengupta2019going}&\XSolid & 68.72 & 64.09& - & - & - & - \\
-        TSC\cite{han2020deep} &\XSolid &68.72 & 68.18 &- &- & 58.42 & 65.27 \\
-        RMP-SNN\cite{han2020rmp} &\XSolid&68.72 &67.82  &27.64 &46.91 &57.69 & 64.06\\
-        Opt.\cite{deng2021optimal} &\XSolid& 77.16& 77.22 & 51.27 & 70.12 & 75.81 & 77.22\\
-        Calibration\cite{li2021free} &\XSolid& 77.16 & 77.73 & 76.32 & 77.29 & 77.73 & 77.63\\
-        Burst \cite{li2022efficient}  &\XSolid& 80.69& 80.72 & 76.39 & 79.83 & 80.52 & 80.57   \\
-        \textbf{This Work } &\Checkmark&80.69 & \textbf{80.58} & \textbf{71.98} & \textbf{78.58} & \textbf{80.25} & \textbf{80.57}\\
-        \bottomrule
-    \end{tabular}}
-  \end{threeparttable}
-  \label{cifar100}
-\end{table}
-
+\subsection{Ablation Study}
+There are six time constant in proposed adaptive threshold, our experiments use four group hyperparameters separately for VGG16 and ResNet20, And we give the best hyperparameters group which makes multi-stage adaptive threshold have the better performance on both CIFAR10 and CIFAR100 datasets in Table\ref{hyperparameters}
 \begin{table}[!t]
   \centering
   \caption{Summary of given hyperparameters on different network}
@@ -470,60 +443,136 @@ Extensive experiments
   \label{hyperparameters}
 \end{table}
 
+In our method, $V_{th}$ are chosen as the maximum activation value. In figure\ref{AS} The dotted lines indicate the target ANN accuracy, 
+and we obverse the Dynamic Tracking Threshold(DTT) and Dynamic Evoked Threshold(DET) and fixed threshold impact on classfication accuracy.
+It is intuitive that with DET only we could achieve shorter latency and have a faster approach to target ANN classfication accuracy. 
+While DET only sometimes have a better performance than $0.7V_{th}$ as figure\ref{f3d}and sometimes the close to $0.7V_{th}$ as figure\ref{f3c}.
 
-
-
+Adaptive threshold with both DTT and DET could have a faster inference time and need less timestep to achieve the target ANN accuracy, in figure\ref{f3c}, it shows that it also have a better performance than ANN,
+this may because the adaptive threshold relieve the overfitting which exists in ANN. The result shows that the DTT and DET could have advantage on shorter latency and higher accuracy, it result from the adaptive threshold could find an appropriate
+threshold that reduce the quantization error and do not import larger clip error.
 \begin{figure}[htbp]
   \centering
-  \subfigure[pic1.]{
-  \includegraphics[width=6cm]{./fig/acc_cifar10_vgg16.pdf}
+  \subfigure[VGG16 on CIFAR10]{
+  \includegraphics[width=6.5cm]{./fig/acc_cifar10_vgg16.pdf}
   %\caption{fig1}
   }
   \quad
-  \subfigure[pic2.]{
-  \includegraphics[width=6cm]{./fig/acc_cifar10_resnet20.pdf}
+  \subfigure[ResNet20 on CIFAR10]{
+  \includegraphics[width=6.5cm]{./fig/acc_cifar10_resnet20.pdf}
   }
 
-  \subfigure[pic3.]{
-    \includegraphics[width=6cm]{./fig/acc_cifar100_vgg16.pdf}
+  \subfigure[VGG16 on CIFAR100]{
+    \label{f3c}
+    \includegraphics[width=6.5cm]{./fig/acc_cifar100_vgg16.pdf}
     %\caption{fig1}
     }
     \quad
-    \subfigure[pic4.]{
-    \includegraphics[width=6cm]{./fig/acc_cifar100_resnet20.pdf}
+    \subfigure[ResNet20 on CIFAR100]{
+    \label{f3d}
+    \includegraphics[width=6.5cm]{./fig/acc_cifar100_resnet20.pdf}
     }
-
-  \caption{ pics}
-  \end{figure}
-
-\begin{figure}[h]
-  \centering
-  \fbox{\rule[-.5cm]{0cm}{4cm} \rule[-.5cm]{4cm}{0cm}}
-  \caption{Spike count(efficiency) fig.}
+  \caption{Ablation study on DTT and DET}
+  \label{AS}
 \end{figure}
 
 
+figure \ref{sin:after} shows SIN ratio in each VGG16 layer with dynamic threshold and spike confidence, it shows that the sin ratio could be remarkably degrated especially the penultimate IF layer.
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\textwidth]{./fig/sin_ratio_after.pdf}
+  \caption{SIN ratio in each VGG16 layer with dynamic threshold and spike confidence.}
+  \label{sin:after}
+\end{figure}
 
 
-Table x: detection mAP on VOC and COCO for our converted SNNs, and compared to other conversion methods and ANN.
+\subsection{Comparison With The State-Of-The-Art}
+We compare our method with current ANN-to-SNN conversion state-of-the-art method, 
+we achieve the comparative performance with these SOTA method, and the nearly lossless conversion from target ANN in timestep 128.
+It is worth noting that though calibration also use dynamic threshold, our method with no need for search best voltage threshold which could may result more computing consumption. The proposed method voltage threshold is an adaptation
+to average membrane potential and current input variation, brings biological explanatory and energy-efficiency simultaneously.
+\begin{table}[htbp]
+  \centering
+  \caption{Experimental results on CIFAR10 and CIFAR100}
+  \begin{threeparttable}
+    \resizebox{\linewidth}{!}{
+      \begin{tabular}{c|c|c|ccccc}
+        \toprule
+        Method& Use DT\tnote{1} &ANN &SNN Best & T=32 & T=64 & T=128 & T=256\\
+        \midrule
+        \multicolumn{8}{c}{\textbf{VGG16, CIFAR10}}\\
+        \midrule
+        p-Norm \cite{rueckauer2017conversion} &\XSolid & 95.74 & 94.61 & 93.40 & 93.98 & 94.40 & 94.61 \\
+        Channel-Norm\cite{kim2020spiking} &\XSolid & 95.74 & 94.49 & 87.12 & 91.85 & 93.81 & 94.49 \\
+        Spike-Norm\cite{sengupta2019going} &\XSolid& 91.7 & 91.55& - & - & - & -\\
+        Hybrid\cite{rathi2020diet} &\XSolid & 92.81 & 92.48 &- &- &91.13 &- \\
+        TSC\cite{han2020deep} &\XSolid &93.63 & 93.63 &- &- &- &-  \\
+        RMP-SNN\cite{han2020rmp} &\XSolid&93.63 & 93.63 &60.30 &90.35 &92.41 & 93.04\\
+        Opt.\cite{deng2021optimal} &\XSolid& 92.34& 92.29 & 92.29 & 92.22 & 92.24 & -\\
+        Burst \cite{li2022efficient} &\XSolid& 95.74 & 95.75 & 95.58 & 95.66 & 95.69 & 95.72\\
+        \textbf{This Work(DT+SC)} &\Checkmark&95.74 & \textbf{95.52} & \textbf{93.33} & \textbf{95.14} & \textbf{95.42} & \textbf{95.50} \\
+        \midrule
+        \multicolumn{8}{c}{\textbf{ResNet20, CIFAR10}}\\
+        \midrule
+        p-Norm \cite{rueckauer2017conversion} &\XSolid& 96.56 & 94.61 & 93.40 & 93.98 & 94.40 & 94.61  \\
+        Channel-Norm\cite{kim2020spiking} &\XSolid& 96.56 & 94.49 & 87.12 & 91.85 & 93.81 & 94.49\\
+        Spike-Norm\cite{sengupta2019going}&\XSolid & 89.1 & 87.46& - & - & - & - \\
+        TSC\cite{han2020deep} &\XSolid &91.47 & 91.42 &- &- &- &- \\
+        RMP-SNN\cite{han2020rmp} &\XSolid& 91.47& 87.46 & - & - & - & -\\
+        Opt.\cite{deng2021optimal} &\XSolid& 93.61 & 93.58 & 93.30 &93.55 &93.56 &-\\
+        Burst \cite{li2022efficient}  &\XSolid& 96.56 & 96.59 & 96.11 & 95.49 & 95.45 & 96.36    \\
+        \textbf{This Work(DT+SC)} &\Checkmark&96.56 & \textbf{96.39} & \textbf{93.33} & \textbf{95.93} & \textbf{96.23} & \textbf{96.38}\\
+        \midrule
+        \multicolumn{8}{c}{\textbf{VGG16, CIFAR100}}\\
+        \midrule
+        p-Norm \cite{rueckauer2017conversion} &\XSolid & 78.49& 58.44 & 44.88 & 51.89 & 56.02 & 58.44 \\
+        Channel-Norm\cite{kim2020spiking} &\XSolid & 78.49 & 74.74 & 54.03 & 67.34 & 72.50 & 74.73 \\
+        Spike-Norm\cite{sengupta2019going} &\XSolid& 71.22 & 70.77& - & - & - & -\\
+        TSC\cite{han2020deep} &\XSolid &71.22 & 70.97 &- &- & 69.86 & 70.65 \\
+        RMP-SNN\cite{han2020rmp} &\XSolid&71.22 & 70.93 &- &- &63.76 & 68.34\\
+        Opt.\cite{deng2021optimal} &\XSolid& 77.89& 77.71 & 7.64 & 21.84 & 55.04 & 73.54\\
+        Calibration\cite{li2021free} &\Checkmark& 77.89 & 77.87 & 73.55 & 76.64 & 77.40 & 77.68\\
+        Burst \cite{li2022efficient} &\XSolid& 78.49 & 78.71 & 74.98 & 78.26 & 78.66 & 78.65 \\
+        \textbf{This Work(DT+SC)} &\Checkmark&78.49 & \textbf{78.55} & \textbf{67.73} & \textbf{76.09} & \textbf{78.08} & \textbf{78.50} \\
+        \midrule
+        \multicolumn{8}{c}{\textbf{ResNet20, CIFAR100}}\\
+        \midrule
+        p-Norm \cite{rueckauer2017conversion} &\XSolid& 80.69& 67.35 & 38.13 & 58.09 & 64.96 & 67.33  \\
+        Channel-Norm\cite{kim2020spiking} &\XSolid& 80.69 & 71.26 & 52.59 & 66.05 & 70.08 & 71.26\\
+        Spike-Norm\cite{sengupta2019going}&\XSolid & 68.72 & 64.09& - & - & - & - \\
+        TSC\cite{han2020deep} &\XSolid &68.72 & 68.18 &- &- & 58.42 & 65.27 \\
+        RMP-SNN\cite{han2020rmp} &\XSolid&68.72 &67.82  &27.64 &46.91 &57.69 & 64.06\\
+        Opt.\cite{deng2021optimal} &\XSolid& 77.16& 77.22 & 51.27 & 70.12 & 75.81 & 77.22\\
+        Calibration\cite{li2021free} &\Checkmark& 77.16 & 77.73 & 76.32 & 77.29 & 77.73 & 77.63\\
+        Burst \cite{li2022efficient}  &\XSolid& 80.69& 80.72 & 76.39 & 79.83 & 80.52 & 80.57   \\
+        \textbf{This Work(DT+SC)} &\Checkmark&80.69 & \textbf{80.61} & \textbf{71.92} & \textbf{78.94} & \textbf{80.28} & \textbf{80.58}\\
+        \bottomrule
+    \end{tabular}}
+    \begin{tablenotes}
+      \item[1] Dynamic Threshold
+    \end{tablenotes}
+  \end{threeparttable}
+  \label{cifar10andcifar100}
+\end{table}
 
+\subsection{Energy-Efficiency and Sparsity}
+In this section, we compute the firing rate each layer to evaluate our spike sparsity. We use the same way in \cite{rathi2020diet} to compute energy consumption.
+Multiply and accumulation(MAC) in ANN needs 5.1x more energy cost than SNN accumulation(AC)\cite{horowitz20141}. 32-bit floating-point AC and MAC per operation consumpte 0.9pJ and 4.6pJ individually.
+And there is no operation in SNN if no spike elicit. We chosen the VGG16 on CIFAR10 dataset with timestep T=64, the firing rate on whole dataset each layer is shown in figure\ref{{firingrate}}
+we have 0.84x energy consumption compared to target ANN thus energy-efficiency.
 
 \begin{figure}[htbp]
   \centering
-  \fbox{\rule[-.5cm]{0cm}{4cm} \rule[-.5cm]{4cm}{0cm}}
-  \caption{Vth vaires result vs inherent inference timestep.}
+  \includegraphics[width=0.8\textwidth]{./fig/firing_rate.pdf}
+  \caption{firing in each VGG16 layer on CIFAR10 dataset with timestep T=16.}
+  \label{firingrate}
 \end{figure}
 
 \section{Discussion}
-
-Indeed a trivial solution to
-the fitting problem is the threshold model defined by  and th~0 ms: the ‘‘spike threshold’’ always equals
-the membrane potential, in particular at the upstroke of spikes.
-To avoid these problems, we instead used the threshold model
-to predict the occurrence of spikes and their precise timing based
-only on Vm. The trivial solution mentioned above is a poor
-predictor of spikes since it would predict too many spikes
-
+we divide conversion error again and point out it that SIN take a larger proportion in deep SNN.
+Admittedly, our method exists small gap with the State-of-the-art methods, mainly because they modify the ANN topology for better conversion.
+However, our proposed method could achieve some accuracy with certain accuracy.
+biological inspired threshold and spike confidence, we believe it is a inspiring work for SNN and will have a better performance combined with other method.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newpage
 \bibliography{neurips_2022}
