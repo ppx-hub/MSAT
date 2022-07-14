@@ -71,6 +71,11 @@ part from: https://github.com/Jackn0/must-read-papers-on-snn#conversion
 1. **Bsnn: Towards faster and better conversion of artificial neural networks to spiking neural networks with bistable neurons**. arXiv 2021. [paper](https://arxiv.org/abs/2105.12917)
 
      *Li Y, Zeng Y, Zhao D.*
+     
+1. **Near Lossless Transfer Learning for spiking neural networks**. AAAI 2021. [paper](https://ojs.aaai.org/index.php/AAAI/article/view/17265)
+
+     *Yan, Z., Zhou, J. Wong, W.-F.*
+     
 
 1. **Optimized Potential Initialization for Low-latency Spiking Neural Networks**. AAAI 2022. [paper](https://www.aaai.org/AAAI22Papers/AAAI-3681.BuT.pdf)
 
